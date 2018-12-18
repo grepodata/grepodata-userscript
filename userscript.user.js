@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         grepodata city indexer 04h4u8yu
+// @name         grepodata city indexer DEV
 // @namespace    grepodata
-// @version      3.02
+// @version      3.03
 // @author       grepodata.com
 // @updateURL    https://api.grepodata.com/userscript/cityindexer_709c966982feb61f5797e8b642bb1a7a.user.js
 // @downloadURL	 https://api.grepodata.com/userscript/cityindexer_709c966982feb61f5797e8b642bb1a7a.user.js
@@ -14,10 +14,15 @@
 // @copyright	   2016+, grepodata
 // ==/UserScript==
 
-let gd_version = '3.02';
+// Script parameters
+let gd_version = '3.03';
 let index_key = "04h4u8yu";
 let index_hash = "709c966982feb61f5797e8b642bb1a7a";
+
+// Variables
 let gd_w = unsafeWindow || window, $ = gd_w.jQuery || jQuery;
+let time_regex = /([0-5]\d)(:)([0-5]\d)(:)([0-5]\d)(?!.*([0-5]\d)(:)([0-5]\d)(:)([0-5]\d))/gm;
+let day_regex = /([0-3]\d)(.)([0-3]\d)(.)([0-3]\d)(?=.*([0-5]\d)(:)([0-5]\d)(:)([0-5]\d))/gm;
 
 function Translate() {
   this.nl = {ADD:'Indexeren',SEND:'bezig..',ADDED:'Geindexeerd',MANUAL:'handmatig',NEVER:'nooit',AND:'en',VIEW:'Intel bekijken',CHECK_UPDATE:'Controleer op updates',ABOUT:'Deze tool verzamelt informatie over vijandige steden in een handig overzicht. Rapporten kunnen geindexeerd worden in een unieke index die gedeeld kan worden met alliantiegenoten',INDEX_LIST:'Je draagt momenteel bij aan de volgende indexen',COUNT_1:'Je hebt al ',COUNT_2:' rapporten verzameld in deze sessie',COLLECT_INBOX_1:'Verzamel intel uit mijn ',COLLECT_INBOX_2:'rapporten inbox',COLLECT_FORUM:'alliantie forum',COLLECT_MESSAGE:'berichten inbox'};
@@ -30,7 +35,23 @@ function Translate() {
       default:
         return this.en[field];
     }
-  }
+  };
+  this.formatDate = function(date) {
+    let join = '-';
+    let format = [];
+    let date_locale = Game.locale_lang.replace('_','-');
+    switch(date_locale.substring(0, 2)) {
+      case 'nl': format = [{day:'2-digit'},  {month:'2-digit'}, {year:'2-digit'}]; join = '-'; break;
+      case 'de': format = [{day:'2-digit'},  {month:'2-digit'}, {year:'2-digit'}]; join = '.'; break;
+      case 'en': format = [{year:'numeric'}, {month:'2-digit'}, {day:'2-digit'}];  join = '-'; break;
+      default: return null;
+    }
+    return [
+      date.toLocaleString(date_locale,format[0]),
+      date.toLocaleString(date_locale,format[1]),
+      date.toLocaleString(date_locale,format[2])
+    ].join(join);
+  };
 }
 let lang = new Translate();
 
@@ -47,7 +68,6 @@ String.prototype.report_hash = function() {
 };
 
 // Add the given forum report to the index
-let reportsFoundForum=[];
 function addToIndexFromForum(reportId, reportElement, reportPoster, reportHash) {
   let reportJson = JSON.parse(mapDOM(reportElement, true));
   let reportText = reportElement.innerText;
@@ -62,10 +82,11 @@ function addToIndexFromForum(reportId, reportElement, reportPoster, reportHash) 
     'report_poster': reportPoster
   };
 
-  if (gd_settings.forum === 'manual') {
-    let repBtn = $('#gd_index_f_txt_' + reportId).get(0);
-    if (repBtn !== undefined) {repBtn.innerText = lang.get('SEND');}
-  }
+  $('.rh'+reportHash).each(function() {
+    $(this).css( "color",'#36cd5b');
+    $(this).find('.middle').get(0).innerText = lang.get('ADDED') + ' ✓';
+    $(this).off("click");
+  });
   $.ajax({
     url: "https://api.grepodata.com/indexer/addreport",
     data: data,
@@ -73,22 +94,15 @@ function addToIndexFromForum(reportId, reportElement, reportPoster, reportHash) 
     crossDomain: true,
     dataType: 'json',
     success: function(data) {
-      if (reportHash!==null){
-        reportsFoundForum.push(reportHash);
-      }
-      if ($('#gd_index_f_' + reportId).get(0)) {
-        $('#gd_index_f_' + reportId).get(0).style.color = '#36cd5b';
-        $('#gd_index_f_txt_' + reportId).get(0).innerText = lang.get('ADDED') + ' ✓';
-      }
+      pushForumHash(reportHash);
     },
-    error: function(jqXHR, textStatus) {console.log("error saving report");},
+    error: function(jqXHR, textStatus) {console.log("error saving forum report");},
     timeout: 20000
   });
   gd_indicator();
 }
 
 // Add the given inbox report to the index
-let reportsFoundInbox = [];
 function addToIndexFromInbox(reportHash, reportElement) {
   let reportJson = JSON.parse(mapDOM(reportElement, true));
   let reportText = reportElement.innerText;
@@ -105,29 +119,38 @@ function addToIndexFromInbox(reportHash, reportElement) {
     'report_poster_ally_id': gd_w.Game.alliance_id || 0,
   };
 
+  if (gd_settings.inbox === 'manual') {
+    let btn = document.getElementById("gd_index_rep_txt");
+    let btnC = document.getElementById("gd_index_rep_");
+    btnC.setAttribute('style', 'color: #36cd5b; float: right;');
+    btn.innerText = lang.get('ADDED') + ' ✓';
+  }
   $.ajax({
     url: "https://api.grepodata.com/indexer/inboxreport",
     data: data,
     type: 'post',
     crossDomain: true,
     success: function(data) {
-      if (gd_settings.inbox === 'manual') {
-        let btn = document.getElementById("gd_index_rep_txt");
-        let btnC = document.getElementById("gd_index_rep_");
-        btnC.setAttribute('style', 'color: #36cd5b; float: right;');
-        btn.innerText = lang.get('ADDED') + ' ✓';
-      }
-      reportsFoundInbox.push(reportHash);
+      pushInboxHash(reportHash);
     },
-    error: function(jqXHR, textStatus) {
-      let btn = document.getElementById("gd_index_rep_txt");
-      btn.innerText = 'Failed to index';
-    },
+    error: function(jqXHR, textStatus) {console.log("error saving inbox report");},
     timeout: 20000
   });
   gd_indicator();
 }
 
+function pushInboxHash(hash) {
+  if (gd_w.reportsFoundInbox === undefined) {
+    gd_w.reportsFoundInbox=[];
+  }
+  gd_w.reportsFoundInbox.push(hash);
+}
+function pushForumHash(hash) {
+  if (gd_w.reportsFoundForum === undefined) {
+    gd_w.reportsFoundForum=[];
+  }
+  gd_w.reportsFoundForum.push(hash);
+}
 
 function mapDOM(element, json) {
   let treeObject = {};
@@ -244,7 +267,7 @@ function parseInboxReport() {
   }
 }
 
-function addForumReportById(reportId) {
+function addForumReportById(reportId, reportHash) {
   let reportElement = document.getElementById(reportId);
 
   // Find report poster
@@ -271,16 +294,6 @@ function addForumReportById(reportId) {
     search_limit -= 1;
   }
 
-  let header = reportElement.getElementsByClassName('published_report_header bold')[0];
-  let reportHash = null;
-  if (header !== undefined) {
-    reportHash = header.innerText.trim().replace(/\s+/g, '.').report_hash();
-    for (let j = 0; j < reportsFoundForum.length; j++) {
-      if (reportsFoundForum[j] === reportHash) {
-        return;
-      }
-    }
-  }
   addToIndexFromForum(reportId, reportElement, reportPoster, reportHash);
 }
 
@@ -305,25 +318,55 @@ function parseForumReport() {
           continue;
         }
 
-        let header = reportElement.getElementsByClassName('published_report_header bold')[0];
         let reportHash = null;
+        try {
+          // parse report hash
+          let header = reportElement.getElementsByClassName('published_report_header bold')[0];
+          let headerText = header.getElementsByClassName('bold')[0].innerText;
+          let dateText = header.getElementsByClassName('reports_date small')[0].innerText;
+          let dateString = dateText;
+          try {
+            let day = dateText.match(day_regex);
+            if (day != null) {
+              // Date is not today
+              day = day[0];
+            } else {
+              // Date is today
+              day = lang.formatDate(new Date());
+            }
+            let time = dateText.match(time_regex);
+            if (time != null && day != null) {
+              dateString = day + '.' + time[0];
+            }
+          } catch (e) {}
+          let reportText = headerText +'.'+ dateString;
+          reportText = reportText.trim().replace(/\s+/g, '.');
+          if (reportText!==null && reportText!=='') {
+            reportHash = reportText.report_hash();
+          }
+        } catch(err) {
+          reportHash = null;
+        }
+
         let exists = false;
-        if (header !== undefined) {
-          reportHash = header.innerText.trim().replace(/\s+/g, '.').report_hash();
-          for (let j = 0; j < reportsFoundForum.length; j++) {
-            if (reportsFoundForum[j] === reportHash) {
+        if (reportHash !== null && reportHash !== 0) {
+          for (let j = 0; j < gd_w.reportsFoundForum.length; j++) {
+            if (gd_w.reportsFoundForum[j] == reportHash) {
               exists = true;
             }
           }
         }
 
+        if (reportHash == null) {
+          reportHash = '';
+        }
         if (bSpy === true) {
           $(reportElement).append('<div class="gd_indexer_footer" style="background: #fff; height: 28px;">\n' +
-            '    <a href="#" id="gd_index_f_'+reportId+'" report_id="'+reportId+'" class="button" style="float: right; top: 1px;"><span class="left"><span class="right"><span id="gd_index_f_txt_'+reportId+'" class="middle">'+lang.get('ADD')+' +</span></span></span></a>\n' +
+            '    <a href="#" id="gd_index_f_'+reportId+'" report_hash="'+reportHash+'" report_id="'+reportId+'" class="button rh'+reportHash+'" style="float: right; top: 1px;"><span class="left"><span class="right"><span id="gd_index_f_txt_'+reportId+'" class="middle">'+lang.get('ADD')+' +</span></span></span></a>\n' +
             '    </div>');
         } else {
           $(reportElement).append('<div class="gd_indexer_footer" style="height: 28px; margin-top: -28px;">\n' +
-            '    <a href="#" id="gd_index_f_'+reportId+'" report_id="'+reportId+'" class="button" style="float: right; top: 1px;"><span class="left"><span class="right"><span id="gd_index_f_txt_'+reportId+'" class="middle">'+lang.get('ADD')+' +</span></span></span></a>\n' +
+            '    <a href="#" id="gd_index_f_'+reportId+'" report_hash="'+reportHash+'" report_id="'+reportId+'" class="button rh'+reportHash+'" style="float: right; top: 1px;"><span class="left"><span class="right"><span id="gd_index_f_txt_'+reportId+'" class="middle">'+lang.get('ADD')+' +</span></span></span></a>\n' +
             '    </div>');
         }
 
@@ -332,7 +375,7 @@ function parseForumReport() {
           $('#gd_index_f_txt_' + reportId).get(0).innerText = lang.get('ADDED') + ' ✓';
         } else {
           $('#gd_index_f_' + reportId).click(function () {
-            addForumReportById($(this).attr('report_id'));
+            addForumReportById($(this).attr('report_id'), $(this).attr('report_hash'));
           });
         }
       }
@@ -348,6 +391,7 @@ function settings() {
   if (!$("#gd_indexer").get(0)) {
     $(".settings-menu ul:last").append('<li id="gd_li"><svg aria-hidden="true" data-prefix="fas" data-icon="university" class="svg-inline--fa fa-university fa-w-16" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="color: #2E4154;width: 16px;width: 15px;vertical-align: middle;margin-top: -2px;"><path fill="currentColor" d="M496 128v16a8 8 0 0 1-8 8h-24v12c0 6.627-5.373 12-12 12H60c-6.627 0-12-5.373-12-12v-12H24a8 8 0 0 1-8-8v-16a8 8 0 0 1 4.941-7.392l232-88a7.996 7.996 0 0 1 6.118 0l232 88A8 8 0 0 1 496 128zm-24 304H40c-13.255 0-24 10.745-24 24v16a8 8 0 0 0 8 8h464a8 8 0 0 0 8-8v-16c0-13.255-10.745-24-24-24zM96 192v192H60c-6.627 0-12 5.373-12 12v20h416v-20c0-6.627-5.373-12-12-12h-36V192h-64v192h-64V192h-64v192h-64V192H96z"></path></svg><a id="gd_indexer" href="#" style="    margin-left: 4px;">GrepoData City Indexer</a></li>');
 
+    // let layoutUrl = 'https' + window.getComputedStyle(document.getElementsByClassName('icon')[0], null).background.split('("https')[1].split('"')[0];
     let settingsHtml = '<div id="gd_settings_container" style="display: none; position: absolute; top: 0; bottom: 0; right: 0; left: 232px; padding: 0px; overflow: auto;">\n' +
       '    <div id="gd_settings" style="position: relative;">\n' +
       '\t\t<div class="section" id="s_gd_city_indexer">\n' +
@@ -358,12 +402,12 @@ function settings() {
     settingsHtml = settingsHtml + '</p>' + (count>0?'<p>'+lang.get('COUNT_1')+count+lang.get('COUNT_2')+'.</p>':'') +
       '<hr>\n' +
       '\t\t\t<p style="    margin-bottom: 10px; margin-left: 10px;">'+lang.get('COLLECT_INBOX_1')+
-      '<span style="background: url(https://gpnl.innogamescdn.com/images/game/autogenerated/layout/layout_6492c98.png) no-repeat -635px -117px;\n' +
-      '    margin-right: 4px; position: relative; width: 26px; height: 26px; top: 6px; left: 0px; display: -webkit-inline-box; padding-top: 6px; padding-left: 6px;">\n' +
-      '<span class="icon" style="background: url(https://gpnl.innogamescdn.com/images/game/autogenerated/layout/layout_6492c98.png) no-repeat -678px -669px;\n' +
-      '    width: 24px; height: 21px; display: -webkit-inline-box;">\n' +
-      '\t</span>\n' +
-      '</span>'+
+      // '<span style="background: url('+layoutUrl+') no-repeat -635px -117px;\n' +
+      // '    margin-right: 4px; position: relative; width: 26px; height: 26px; top: 6px; left: 0px; display: -webkit-inline-box; padding-top: 6px; padding-left: 6px;">\n' +
+      // '<span class="icon" style="background: url('+layoutUrl+') no-repeat -678px -669px;\n' +
+      // '    width: 24px; height: 21px; display: -webkit-inline-box;">\n' +
+      // '\t</span>\n' +
+      // '</span>'+
       '<strong>'+lang.get('COLLECT_INBOX_2')+'</strong>:</p>\n' +
       '\t\t\t<div style="margin-left: 30px;" class="checkbox_new inbox_manual'+(gd_settings.inbox=='manual'?' checked':'')+'">\n' +
       '\t\t\t\t<div class="cbx_icon"></div><div class="cbx_caption">'+lang.get('MANUAL')+'</div>\n' +
@@ -374,19 +418,19 @@ function settings() {
       '<p id="gd_s_saved_inbox" style="display: none; position: absolute; left: 50px; margin: 0;"><strong>Saved ✓</strong></p> '+
       '\t\t\t<br><br><br><hr>\n' +
       '\t\t\t<p style="    margin-bottom: 10px; margin-left: 10px;">' + lang.get('COLLECT_INBOX_1') +
-      '<span style="background: url(https://gpnl.innogamescdn.com/images/game/autogenerated/layout/layout_6492c98.png) no-repeat -635px -117px;\n' +
-      '    margin-right: 4px; position: relative; width: 27px; height: 26px; top: 6px; left: 0px; display: -webkit-inline-box; padding-top: 6px; padding-left: 5px;">\n' +
-      '<span class="icon" style="background: url(https://gpnl.innogamescdn.com/images/game/autogenerated/layout/layout_6492c98.png) no-repeat -702px -669px;\n' +
-      '    width: 24px; height: 21px; display: -webkit-inline-box;">\n' +
-      '\t</span>\n' +
-      '</span>' +
+      // '<span style="background: url('+layoutUrl+') no-repeat -635px -117px;\n' +
+      // '    margin-right: 4px; position: relative; width: 27px; height: 26px; top: 6px; left: 0px; display: -webkit-inline-box; padding-top: 6px; padding-left: 5px;">\n' +
+      // '<span class="icon" style="background: url('+layoutUrl+') no-repeat -702px -669px;\n' +
+      // '    width: 24px; height: 21px; display: -webkit-inline-box;">\n' +
+      // '\t</span>\n' +
+      // '</span>' +
       '<strong>'+lang.get('COLLECT_FORUM')+'</strong> '+lang.get('AND')+' ' +
-      '<span style="background: url(https://gpnl.innogamescdn.com/images/game/autogenerated/layout/layout_6492c98.png) no-repeat -635px -117px;\n' +
-      '    margin-right: 4px; position: relative; width: 27px; height: 26px; top: 6px; left: 0px; display: -webkit-inline-box; padding-top: 6px; padding-left: 5px;">\n' +
-      '<span class="icon" style="background: url(https://gpnl.innogamescdn.com/images/game/autogenerated/layout/layout_6492c98.png) no-repeat -606px -669px;\n' +
-      '    width: 24px; height: 21px; display: -webkit-inline-box;">\n' +
-      '\t</span>\n' +
-      '</span>' +
+      // '<span style="background: url('+layoutUrl+') no-repeat -635px -117px;\n' +
+      // '    margin-right: 4px; position: relative; width: 27px; height: 26px; top: 6px; left: 0px; display: -webkit-inline-box; padding-top: 6px; padding-left: 5px;">\n' +
+      // '<span class="icon" style="background: url('+layoutUrl+') no-repeat -606px -669px;\n' +
+      // '    width: 24px; height: 21px; display: -webkit-inline-box;">\n' +
+      // '\t</span>\n' +
+      // '</span>' +
       '<strong>'+lang.get('COLLECT_MESSAGE')+'</strong>:</p>\n' +
       '\t\t\t<div style="margin-left: 30px;" class="checkbox_new forum_manual'+(gd_settings.forum=='manual'?' checked':'')+'">\n' +
       '\t\t\t\t<div class="cbx_icon"></div><div class="cbx_caption">'+lang.get('MANUAL')+'</div>\n' +
@@ -458,30 +502,39 @@ function readSettings() {
 }
 
 // Loads a list of report ids that have already been added. This is used to avoid duplicates
-function loadIndexHashlist() {
+function loadIndexHashlist(extendMode) {
   try {
-    if (gd_w.gdIndexScript.length === 1) {
-      $.ajax({
-        method: "get",
-        url: "https://api.grepodata.com/indexer/getlatest?key=" + index_key + "&player_id=" + gd_w.Game.player_id
-      }).done(function (b) {
-        try {
-          if (gd_w.gdIndexScript.length === 1) {
-            if (b['i'] !== undefined) {
-              $.each(b['i'], function (b, d) {
-                reportsFoundInbox.push(d)
-              });
-            }
-            if (b['f'] !== undefined) {
-              $.each(b['f'], function (b, d) {
-                reportsFoundForum.push(d)
-              });
-            }
+    $.ajax({
+      method: "get",
+      url: "https://api.grepodata.com/indexer/getlatest?key=" + index_key + "&player_id=" + gd_w.Game.player_id
+    }).done(function (b) {
+      try {
+        if (gd_w.reportsFoundForum === undefined) {gd_w.reportsFoundForum=[];}
+        if (gd_w.reportsFoundInbox === undefined) {gd_w.reportsFoundInbox=[];}
+
+        if (extendMode === false) {
+          if (b['i'] !== undefined) {
+            $.each(b['i'], function (b, d) {
+              gd_w.reportsFoundInbox.push(d)
+            });
           }
-        } catch (u) {
+          if (b['f'] !== undefined) {
+            $.each(b['f'], function (b, d) {
+              gd_w.reportsFoundForum.push(d)
+            });
+          }
+        } else {
+          // Running in extend mode, merge with existing list
+          if (b['f'] !== undefined) {
+            gd_w.reportsFoundForum = gd_w.reportsFoundForum.filter(value => -1 !== b['f'].indexOf(value));
+          }
+          if (b['i'] !== undefined) {
+            gd_w.reportsFoundInbox = gd_w.reportsFoundInbox.filter(value => -1 !== b['i'].indexOf(value));
+          }
         }
-      });
-    }
+      } catch (u) {
+      }
+    });
   } catch (w) {}
 }
 
@@ -500,7 +553,7 @@ function enableCityIndex(key) {
 
     console.log('Grepodata city indexer '+index_key+' active. (version: '+gd_version+')');
     readSettings();
-    setTimeout(loadIndexHashlist, 2000);
+    setTimeout(function() {loadIndexHashlist(false);}, 2000);
     $.Observer(gd_w.GameEvents.game.load).subscribe('GREPODATA', function (e, data) {
       $(document).ajaxComplete(function (e, xhr, opt) {
         let url = opt.url.split("?"), action = "";
@@ -545,14 +598,19 @@ function enableCityIndex(key) {
     $('.gd_settings_icon').tooltip('GrepoData City Indexer ' + index_key);
   } else {
     gd_w.gdIndexScript.push(key);
-    console.log('duplicate indexer script. index ' + key + ' is running in extend mode.')
+    console.log('duplicate indexer script. index ' + key + ' is running in extend mode.');
+
+    // Merge id lists
+    setTimeout(function() {loadIndexHashlist(true);}, 8000 * (gd_w.gdIndexScript.length-1));
   }
 }
 
 // Watch for angular app route change
 function grepodataObserver(path) {
   let initWatcher = setInterval(function () {
-    if (gd_w.location.pathname.indexOf("/indexer/"+index_key) >= 0 && gd_w.location.pathname != path) {
+    if (gd_w.location.pathname.indexOf("/indexer/") >= 0 &&
+      gd_w.location.pathname.indexOf(index_key) >= 0 &&
+      gd_w.location.pathname != path) {
       clearInterval(initWatcher);
       messageObserver();
     } else if (path != "" && gd_w.location.pathname != path) {
@@ -596,4 +654,3 @@ if(gd_w.location.href.indexOf("grepodata.com") >= 0){
   // Indexer (in-game)
   enableCityIndex(index_key);
 }
-
