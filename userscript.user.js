@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         grepodata city indexer DEV
 // @namespace    grepodata
-// @version      3.04
+// @version      3.05
 // @author       grepodata.com
 // @updateURL    https://api.grepodata.com/userscript/cityindexer_709c966982feb61f5797e8b642bb1a7a.user.js
 // @downloadURL	 https://api.grepodata.com/userscript/cityindexer_709c966982feb61f5797e8b642bb1a7a.user.js
@@ -15,7 +15,7 @@
 // ==/UserScript==
 
 // Script parameters
-let gd_version = '3.04';
+let gd_version = '3.05';
 let index_key = "04h4u8yu";
 let index_hash = "709c966982feb61f5797e8b642bb1a7a";
 
