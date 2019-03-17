@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         grepodata city indexer DEV
 // @namespace    grepodata
-// @version      3.03
+// @version      3.04
 // @author       grepodata.com
 // @updateURL    https://api.grepodata.com/userscript/cityindexer_709c966982feb61f5797e8b642bb1a7a.user.js
 // @downloadURL	 https://api.grepodata.com/userscript/cityindexer_709c966982feb61f5797e8b642bb1a7a.user.js
@@ -15,7 +15,7 @@
 // ==/UserScript==
 
 // Script parameters
-let gd_version = '3.03';
+let gd_version = '3.04';
 let index_key = "04h4u8yu";
 let index_hash = "709c966982feb61f5797e8b642bb1a7a";
 
@@ -31,7 +31,6 @@ function Translate() {
     switch(Game.locale_lang.substring(0, 2)) {
       case 'nl':
         return this.nl[field];
-        break;
       default:
         return this.en[field];
     }
@@ -538,12 +537,228 @@ function loadIndexHashlist(extendMode) {
   } catch (w) {}
 }
 
+function loadTownIntel(id) {
+  try {
+    $('.info_tab_content_'+id).empty();
+    $('.info_tab_content_'+id).append('Loading intel..');
+    $.ajax({
+      method: "get",
+      url: "https://api.grepodata.com/indexer/api/town?key=" + index_key + "&id=" + id
+    }).error( function (err) {
+      $('.info_tab_content_'+id).empty();
+      $('.info_tab_content_'+id).append('<div style="text-align: center"><br/><br/>' +
+        'No intel available at the moment.<br/>Index some new reports about this town to collect intel.<br/><br/>' +
+        '<a href="https://grepodata.com/indexer/'+index_key+'" target="_blank" style="">Index homepage: '+index_key+'</a></div>');
+    }).done(function (b) {
+      try {
+        console.log(b);
+        $('.info_tab_content_'+id).css( "max-height",'100%');
+        $('.info_tab_content_'+id).css( "height",'100%');
+        let tooltips = [];
+
+        $('.info_tab_content_'+id).empty();
+
+        // Version check
+        if (b.hasOwnProperty('latest_version') && b.latest_version != null && b.latest_version.toString() !== gd_version) {
+          let updateHtml =
+            '<div class="gd-update-available" style=" background: #b93b3b; color: #fff; text-align: center; border-radius: 10px; padding-bottom: 2px;">' +
+            'New userscript version available: ' +
+            '<a href="https://api.grepodata.com/userscript/cityindexer_'+index_hash+'.user.js" class="gd-ext-ref" target="_blank" ' +
+            'style="color: #c5ecdb; text-decoration: underline;">Update now!</a></div>';
+            $('.info_tab_content_'+id).append(updateHtml);
+          $('.gd-update-available').tooltip((b.hasOwnProperty('update_message')?b.update_message:b.latest_version));
+        }
+
+        // Buildings
+        let build = '<div class="gd_build_'+id+'" style="padding: 5px 0;">';
+        let date = '';
+        for (let j = 0; j < Object.keys(b.buildings).length; j++) {
+          let name = Object.keys(b.buildings)[j];
+          let value = b.buildings[name].level.toString();
+          if (value != null && value != '' && value.indexOf('%') < 0) {
+            date = b.buildings[name].date;
+            build = build + '<div class="building_header building_icon40x40 '+name+' regular" id="icon_building_'+name+'" ' +
+              'style="margin-left: 3px; width: 32px; height: 32px;">' +
+              '<div style="position: absolute; top: 17px; margin-left: 8px; z-index: 10; color: #fff; font-size: 12px; font-weight: 700; text-shadow: 1px 1px 3px #000;">'+value+'</div>' +
+              '</div>';
+          }
+        }
+        build = build + '</div>';
+        $('.info_tab_content_'+id).append(build);
+        $('.gd_build_'+id).tooltip('Buildings as of: ' + date);
+
+        let table =
+          '<div class="game_border" style="max-height: 100%;">\n' +
+          '   <div class="game_border_top"></div><div class="game_border_bottom"></div><div class="game_border_left"></div><div class="game_border_right"></div>\n' +
+          '   <div class="game_border_corner corner1"></div><div class="game_border_corner corner2"></div><div class="game_border_corner corner3"></div><div class="game_border_corner corner4"></div>\n' +
+          '   <div class="game_header bold">\n' +
+          'Town intel for: ' + b.name + '<a href="https://grepodata.com/indexer/'+index_key+'" class="gd-ext-ref" target="_blank" style="float: right; color: #fff; text-decoration: underline;">Enemy city index: '+index_key+'</a>\n' +
+          '   </div>\n' +
+          '   <div style="height: 280px;">' +
+          '     <ul class="game_list" style="display: block; width: 100%; height: 280px; overflow-x: hidden; overflow-y: auto;">\n';
+        for (let j = 0; j < Object.keys(b.intel).length; j++) {
+          let intel = b.intel[j];
+          let row = '';
+
+          // Type
+          if (intel.type != null && intel.type != '') {
+            let typeUrl = '';
+            let tooltip = '';
+            let flip = true;
+            switch (intel.type) {
+              case 'enemy_attack':
+                typeUrl = '/images/game/towninfo/attack.png';
+                tooltip = 'Enemy attack';
+                break;
+              case 'friendly_attack':
+                flip = false;
+                typeUrl = '/images/game/towninfo/attack.png';
+                tooltip = 'Friendly attack';
+                break;
+              case 'attack_on_conquest':
+                typeUrl = '/images/game/towninfo/conquer.png';
+                tooltip = 'Attack on conquest';
+                break;
+              case 'support':
+                typeUrl = '/images/game/towninfo/support.png';
+                tooltip = 'Sent in support';
+                break;
+              case 'spy':
+                typeUrl = '/images/game/towninfo/espionage_2.67.png';
+                if (intel.silver != null && intel.silver != '') {
+                  tooltip = 'Silver used: ' + intel.silver;
+                }
+                break;
+              default:
+                typeUrl = '/images/game/towninfo/attack.png';
+            }
+            let typeHtml =
+              '<div style="height: 0px; margin-top: -5px; ' +
+              (flip?'-moz-transform: scaleX(-1); -o-transform: scaleX(-1); -webkit-transform: scaleX(-1); transform: scaleX(-1); filter: FlipH; -ms-filter: "FlipH";':'') +
+              '"><div style="background: url('+typeUrl+');\n' +
+              '    padding: 0;\n' +
+              '    height: 50px;\n' +
+              '    width: 50px;\n' +
+              '    position: relative;\n' +
+              '    display: inherit;\n' +
+              '    transform: scale(0.6, 0.6);-ms-transform: scale(0.6, 0.6);-webkit-transform: scale(0.6, 0.6);' +
+              '    box-shadow: 0px 0px 9px 0px #525252;" class="intel-type-'+id+'-'+j+'"></div></div>';
+            row = row +
+              '<div style="display: table-cell; ">' +
+              typeHtml +
+              '</div>';
+            tooltips.push(tooltip);
+          } else {
+            row = row + '<div style="display: table-cell;"></div>';
+          }
+
+          // Date
+          row = row + '<div style="display: table-cell; width: 100px; padding-top: 3px;" class="bold">' + intel.date + '</div>';
+
+          // units
+          let unitHtml = '';
+          let killed = false;
+          for (let i = 0; i < Object.keys(intel.units).length; i++) {
+            let unit = intel.units[i];
+            let size = 10;
+            switch (Math.max(unit.count.toString().length, unit.killed.toString().length)) {
+              case 1: case 2: size = 11; break;
+              case 3: size = 10; break;
+              case 4: size = 8; break;
+              case 5: size = 6; break;
+              default: size = 10;
+            }
+            if (unit.killed > 0) {killed=true;}
+            unitHtml = unitHtml +
+              '<div class="unit_icon25x25 '+unit.name+'" style="overflow: unset; font-size: '+size+'px; text-shadow: 1px 1px 3px #000; color: #fff; font-weight: 700; border: 1px solid #626262; padding: 10px 0 0 0; line-height: 13px; height: 15px; text-align: right; margin-right: 2px;">' +
+              unit.count +
+              (unit.killed > 0 ? '   <div class="report_losts" style="position: absolute; margin: 4px 0 0 0; font-size: '+(size-1)+'px; text-shadow: none;">-'+unit.killed+'</div>\n' : '') +
+              '</div>';
+          }
+          if (intel.hero != null) {
+            unitHtml = unitHtml +
+              '<div class="hero_icon_border golden_border" style="display: inline-block;">\n' +
+              '    <div class="hero_icon_background">\n' +
+              '        <div class="hero_icon hero25x25 '+intel.hero.toLowerCase()+'"></div>\n' +
+              '    </div>\n' +
+              '</div>';
+          }
+          row = row + '<div style="display: table-cell;"><div><div class="origin_town_units" style="position: absolute; padding-left: 30px; margin: 5px 0 5px 0; '+(killed?'height: 37px;':'')+'">' + unitHtml + '</div></div></div>';
+
+          // Wall
+          if (intel.wall != null && intel.wall != '' && intel.wall.indexOf('%') < 0) {
+            row = row +
+              '<div style="display: table-cell; width: 50px; float: right;">' +
+              '<div class="sprite-image" style="display: inline-block; font-weight: 600;">' +
+              '<div style="position: absolute; top: 19px; margin-left: 8px; z-index: 10; color: #fff; font-size: 10px; text-shadow: 1px 1px 3px #000;">'+intel.wall+'</div>' +
+              '<img src="https://gpnl.innogamescdn.com/images/game/main/buildings_sprite_40x40.png" alt="icon" ' +
+              'width="40" height="40" style="object-fit: none;object-position: -40px -80px;width: 40px;height: 40px;' +
+              'transform: scale(0.68, 0.68);-ms-transform: scale(0.68, 0.68);-webkit-transform: scale(0.68, 0.68);' +
+              'padding-left: -7px; margin: -48px 0 0 0px; position:absolute;">' +
+              '</div></div>';
+          } else {
+            row = row + '<div style="display: table-cell;"></div>';
+          }
+
+          let rowHeader = '<li class="'+(j % 2 === 0 ? 'odd':'even')+'" style="display: inherit; width: 100%; padding: 0 0 '+(killed?'1':'')+'5px 0;">';
+          table = table + rowHeader + row + '</li>\n';
+        }
+        table = table + '</div></ul></div>';
+        $('.info_tab_content_'+id).append(table);
+        for (let j = 0; j < tooltips.length; j++) {
+          $('.intel-type-'+id+'-'+j).tooltip(tooltips[j]);
+        }
+
+        let world = Game.world_id;
+        let exthtml =
+          '<div style="display: list-item" class="gd-ext-ref">' +
+          (b.player_id!=null&&b.player_id!=0?'   <a href="https://grepodata.com/indexer/player/'+index_key+'/'+world+'/'+b.player_id+'" target="_blank" style="float: left;"><img alt="" src="/images/game/icons/player.png" style="float: left; padding-right: 2px;">('+b.player_name+') Show player intel</a>':'') +
+          (b.alliance_id!=null&&b.alliance_id!=0?'   <a href="https://grepodata.com/indexer/alliance/'+index_key+'/'+world+'/'+b.alliance_id+'" target="_blank" style="float: right;"><img alt="" src="/images/game/icons/ally.png" style="float: left; padding-right: 2px;">Show alliance intel</a>':'') +
+          '</div>';
+        $('.info_tab_content_'+id).append(exthtml);
+        $('.gd-ext-ref').tooltip('Opens in new tab');
+
+      } catch (u) {
+        console.log(u);
+        $('.info_tab_content_'+id).empty();
+        $('.info_tab_content_'+id).append('<div style="text-align: center"><br/><br/>' +
+          'No intel available at the moment.<br/>Index some new reports about this town to collect intel.<br/><br/>' +
+          '<a href="https://grepodata.com/indexer/'+index_key+'" target="_blank" style="">Index homepage: '+index_key+'</a></div>');
+      }
+    });
+  } catch (w) {
+    console.log(w);
+    $('.info_tab_content_'+id).empty();
+    $('.info_tab_content_'+id).append('<div style="text-align: center"><br/><br/>' +
+      'No intel available at the moment.<br/>Index some new reports about this town to collect intel.<br/><br/>' +
+      '<a href="https://grepodata.com/indexer/'+index_key+'" target="_blank" style="">Index homepage: '+index_key+'</a></div>');
+  }
+}
+
 let count = 0;
 function gd_indicator() {
   count = count + 1;
   $('#gd_index_indicator').get(0).innerText = count;
   $('#gd_index_indicator').get(0).style.display = 'inline';
   $('.gd_settings_icon').tooltip('Indexed Reports: ' + count);
+}
+
+function viewTownIntel(xhr) {
+  let town_id = xhr.responseText.match(/(?<=\[town\]).*?(?=\[\\\/town\])/gs)[0];
+
+  // Add intel button and handle click event
+  let intelBtn = '<div id="gd_index_town_'+town_id+'" town_id="'+town_id+'" class="button_new gdtv'+town_id+'" style="float: right; bottom: 4px;">' +
+    '<div class="left"></div>' +
+    '<div class="right"></div>' +
+    '<div class="caption js-caption">'+lang.get('VIEW')+'<div class="effect js-effect"></div></div></div>';
+  $('.info_tab_content_'+town_id + ' > .game_inner_box > .game_border > ul.game_list > li.odd').filter(':first').append(intelBtn);
+
+  // Handle click
+  $('#gd_index_town_' + town_id).click(function () {
+    let panel_root = $('.info_tab_content_'+town_id).parent().parent().parent().get(0);
+    panel_root.getElementsByClassName('active')[0].classList.remove('active');
+    loadTownIntel(town_id);
+  });
 }
 
 let gdsettings = false;
@@ -567,6 +782,8 @@ function enableCityIndex(key) {
               parseInboxReport();
             }
             break;
+          case "/town_info/info":
+            viewTownIntel(xhr);
           case "/message/view":
           case "/alliance_forum/forum":
             // Parse reports from forum and messages
@@ -632,9 +849,9 @@ function messageObserver() {
         $('#new_index_waiting').get(0).style.display = 'block';
         $('#new_index_install_tips').get(0).style.display = 'none';
       }
-      if ($('#new_index_install').get(0)) {
-        $('#new_index_install').get(0).style.display = 'none';
-      }
+      //if ($('#new_index_install').get(0)) {
+      //  $('#new_index_install').get(0).style.display = 'none';
+      //}
       if ($('#userscript_version').get(0)) {
         $('#userscript_version').append('<div id="gd_version">'+gd_version+'</div>');
       }
@@ -654,3 +871,4 @@ if(gd_w.location.href.indexOf("grepodata.com") >= 0){
   // Indexer (in-game)
   enableCityIndex(index_key);
 }
+
