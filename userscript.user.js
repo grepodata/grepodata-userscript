@@ -744,10 +744,11 @@ function gd_indicator() {
 }
 
 function viewTownIntel(xhr) {
-  let town_id = xhr.responseText.match(/(?<=\[town\]).*?(?=\[\\\/town\])/gs)[0];
+  let town_id = xhr.responseText.match(/\[town\].*?(?=\[)/g)[0];
+  town_id = town_id.substring(6);
 
   // Add intel button and handle click event
-  let intelBtn = '<div id="gd_index_town_'+town_id+'" town_id="'+town_id+'" class="button_new gdtv'+town_id+'" style="float: right; bottom: 4px;">' +
+  let intelBtn = '<div id="gd_index_town_'+town_id+'" town_id="'+town_id+'" class="button_new gdtv'+town_id+'" style="float: right; bottom: 5px;">' +
     '<div class="left"></div>' +
     '<div class="right"></div>' +
     '<div class="caption js-caption">'+lang.get('VIEW')+'<div class="effect js-effect"></div></div></div>';
