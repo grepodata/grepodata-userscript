@@ -686,7 +686,7 @@ function loadTownIntel(id) {
           row = row + '<div style="display: table-cell;"><div><div class="origin_town_units" style="position: absolute; padding-left: 30px; margin: 5px 0 5px 0; '+(killed?'height: 37px;':'')+'">' + unitHtml + '</div></div></div>';
 
           // Wall
-          if (intel.wall != null && intel.wall != '' && intel.wall.indexOf('%') < 0) {
+          if (intel.wall !== null && intel.wall !== '' && (!isNaN(0) || intel.wall.indexOf('%') < 0)) {
             row = row +
               '<div style="display: table-cell; width: 50px; float: right;">' +
               '<div class="sprite-image" style="display: inline-block; font-weight: 600;">' +
