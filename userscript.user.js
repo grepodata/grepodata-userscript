@@ -1,23 +1,29 @@
+{literal}
 // ==UserScript==
-// @name         grepodata city indexer DEV
+// @name         grepodata city indexer {/literal}{$key}{literal}
 // @namespace    grepodata
-// @version      3.05
+// @version      {/literal}{$version}{literal}
 // @author       grepodata.com
-// @updateURL    https://api.grepodata.com/userscript/cityindexer_709c966982feb61f5797e8b642bb1a7a.user.js
-// @downloadURL	 https://api.grepodata.com/userscript/cityindexer_709c966982feb61f5797e8b642bb1a7a.user.js
-// @description  The grepodata city indexer script automatically collects enemy reports from your alliance forum and adds them to your unique enemy city index.
-// @include      http://nl63.grepolis.com/game/*
-// @include      https://nl63.grepolis.com/game/*
+// @updateURL    https://api.grepodata.com/userscript/cityindexer_{/literal}{$encrypted}{literal}.user.js
+// @downloadURL	 https://api.grepodata.com/userscript/cityindexer_{/literal}{$encrypted}{literal}.user.js
+// @description  The grepodata city indexer script allows you to collect enemy reports from your alliance forum and add them to your unique enemy city index.
+// @include      http://{/literal}{$world}{literal}.grepolis.com/game/*
+// @include      https://{/literal}{$world}{literal}.grepolis.com/game/*
 // @include      https://grepodata.com*
 // @exclude      view-source://*
 // @icon         https://grepodata.com/assets/images/grepodata_icon.ico
 // @copyright	   2016+, grepodata
 // ==/UserScript==
 
+// Stop Greasemonkey execution. Only Tampermonkey can run this script
+if ('undefined' === typeof GM_info.script.author) {
+  throw new Error("Stopped greasemonkey execution for grepodata city indexer. Please use Tampermonkey instead");
+}
+
 // Script parameters
-let gd_version = '3.05';
-let index_key = "04h4u8yu";
-let index_hash = "709c966982feb61f5797e8b642bb1a7a";
+let gd_version = "{/literal}{$version}{literal}";
+let index_key = "{/literal}{$key}{literal}";
+let index_hash = "{/literal}{$encrypted}{literal}";
 
 // Variables
 let gd_w = unsafeWindow || window, $ = gd_w.jQuery || jQuery;
@@ -401,12 +407,6 @@ function settings() {
     settingsHtml = settingsHtml + '</p>' + (count>0?'<p>'+lang.get('COUNT_1')+count+lang.get('COUNT_2')+'.</p>':'') +
       '<hr>\n' +
       '\t\t\t<p style="    margin-bottom: 10px; margin-left: 10px;">'+lang.get('COLLECT_INBOX_1')+
-      // '<span style="background: url('+layoutUrl+') no-repeat -635px -117px;\n' +
-      // '    margin-right: 4px; position: relative; width: 26px; height: 26px; top: 6px; left: 0px; display: -webkit-inline-box; padding-top: 6px; padding-left: 6px;">\n' +
-      // '<span class="icon" style="background: url('+layoutUrl+') no-repeat -678px -669px;\n' +
-      // '    width: 24px; height: 21px; display: -webkit-inline-box;">\n' +
-      // '\t</span>\n' +
-      // '</span>'+
       '<strong>'+lang.get('COLLECT_INBOX_2')+'</strong>:</p>\n' +
       '\t\t\t<div style="margin-left: 30px;" class="checkbox_new inbox_manual'+(gd_settings.inbox=='manual'?' checked':'')+'">\n' +
       '\t\t\t\t<div class="cbx_icon"></div><div class="cbx_caption">'+lang.get('MANUAL')+'</div>\n' +
@@ -417,19 +417,7 @@ function settings() {
       '<p id="gd_s_saved_inbox" style="display: none; position: absolute; left: 50px; margin: 0;"><strong>Saved ✓</strong></p> '+
       '\t\t\t<br><br><br><hr>\n' +
       '\t\t\t<p style="    margin-bottom: 10px; margin-left: 10px;">' + lang.get('COLLECT_INBOX_1') +
-      // '<span style="background: url('+layoutUrl+') no-repeat -635px -117px;\n' +
-      // '    margin-right: 4px; position: relative; width: 27px; height: 26px; top: 6px; left: 0px; display: -webkit-inline-box; padding-top: 6px; padding-left: 5px;">\n' +
-      // '<span class="icon" style="background: url('+layoutUrl+') no-repeat -702px -669px;\n' +
-      // '    width: 24px; height: 21px; display: -webkit-inline-box;">\n' +
-      // '\t</span>\n' +
-      // '</span>' +
       '<strong>'+lang.get('COLLECT_FORUM')+'</strong> '+lang.get('AND')+' ' +
-      // '<span style="background: url('+layoutUrl+') no-repeat -635px -117px;\n' +
-      // '    margin-right: 4px; position: relative; width: 27px; height: 26px; top: 6px; left: 0px; display: -webkit-inline-box; padding-top: 6px; padding-left: 5px;">\n' +
-      // '<span class="icon" style="background: url('+layoutUrl+') no-repeat -606px -669px;\n' +
-      // '    width: 24px; height: 21px; display: -webkit-inline-box;">\n' +
-      // '\t</span>\n' +
-      // '</span>' +
       '<strong>'+lang.get('COLLECT_MESSAGE')+'</strong>:</p>\n' +
       '\t\t\t<div style="margin-left: 30px;" class="checkbox_new forum_manual'+(gd_settings.forum=='manual'?' checked':'')+'">\n' +
       '\t\t\t\t<div class="cbx_icon"></div><div class="cbx_caption">'+lang.get('MANUAL')+'</div>\n' +
@@ -565,7 +553,7 @@ function loadTownIntel(id) {
             'New userscript version available: ' +
             '<a href="https://api.grepodata.com/userscript/cityindexer_'+index_hash+'.user.js" class="gd-ext-ref" target="_blank" ' +
             'style="color: #c5ecdb; text-decoration: underline;">Update now!</a></div>';
-            $('.info_tab_content_'+id).append(updateHtml);
+          $('.info_tab_content_'+id).append(updateHtml);
           $('.gd-update-available').tooltip((b.hasOwnProperty('update_message')?b.update_message:b.latest_version));
         }
 
@@ -850,9 +838,6 @@ function messageObserver() {
         $('#new_index_waiting').get(0).style.display = 'block';
         $('#new_index_install_tips').get(0).style.display = 'none';
       }
-      //if ($('#new_index_install').get(0)) {
-      //  $('#new_index_install').get(0).style.display = 'none';
-      //}
       if ($('#userscript_version').get(0)) {
         $('#userscript_version').append('<div id="gd_version">'+gd_version+'</div>');
       }
@@ -872,4 +857,4 @@ if(gd_w.location.href.indexOf("grepodata.com") >= 0){
   // Indexer (in-game)
   enableCityIndex(index_key);
 }
-
+{/literal}
