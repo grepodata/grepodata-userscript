@@ -28,7 +28,6 @@ let index_hash = "{/literal}{$encrypted}{literal}";
 // Variables
 let gd_w = unsafeWindow || window, $ = gd_w.jQuery || jQuery;
 let time_regex = /([0-5]\d)(:)([0-5]\d)(:)([0-5]\d)(?!.*([0-5]\d)(:)([0-5]\d)(:)([0-5]\d))/gm;
-let day_regex = /([0-3]\d)(.)([0-3]\d)(.)([0-3]\d)(?=.*([0-5]\d)(:)([0-5]\d)(:)([0-5]\d))/gm;
 
 function Translate() {
   this.nl = {ADD:'Indexeren',SEND:'bezig..',ADDED:'Geindexeerd',MANUAL:'handmatig',NEVER:'nooit',AND:'en',VIEW:'Intel bekijken',CHECK_UPDATE:'Controleer op updates',ABOUT:'Deze tool verzamelt informatie over vijandige steden in een handig overzicht. Rapporten kunnen geindexeerd worden in een unieke index die gedeeld kan worden met alliantiegenoten',INDEX_LIST:'Je draagt momenteel bij aan de volgende indexen',COUNT_1:'Je hebt al ',COUNT_2:' rapporten verzameld in deze sessie',COLLECT_INBOX_1:'Verzamel intel uit mijn ',COLLECT_INBOX_2:'rapporten inbox',COLLECT_FORUM:'alliantie forum',COLLECT_MESSAGE:'berichten inbox'};
@@ -40,22 +39,6 @@ function Translate() {
       default:
         return this.en[field];
     }
-  };
-  this.formatDate = function(date) {
-    let join = '-';
-    let format = [];
-    let date_locale = Game.locale_lang.replace('_','-');
-    switch(date_locale.substring(0, 2)) {
-      case 'nl': format = [{day:'2-digit'},  {month:'2-digit'}, {year:'2-digit'}]; join = '-'; break;
-      case 'de': format = [{day:'2-digit'},  {month:'2-digit'}, {year:'2-digit'}]; join = '.'; break;
-      case 'en': format = [{year:'numeric'}, {month:'2-digit'}, {day:'2-digit'}];  join = '-'; break;
-      default: return null;
-    }
-    return [
-      date.toLocaleString(date_locale,format[0]),
-      date.toLocaleString(date_locale,format[1]),
-      date.toLocaleString(date_locale,format[2])
-    ].join(join);
   };
 }
 let lang = new Translate();
@@ -98,12 +81,11 @@ function addToIndexFromForum(reportId, reportElement, reportPoster, reportHash) 
     type: 'post',
     crossDomain: true,
     dataType: 'json',
-    success: function(data) {
-      pushForumHash(reportHash);
-    },
+    success: function(data) {},
     error: function(jqXHR, textStatus) {console.log("error saving forum report");},
-    timeout: 20000
+    timeout: 120000
   });
+  pushForumHash(reportHash);
   gd_indicator();
 }
 
@@ -135,12 +117,11 @@ function addToIndexFromInbox(reportHash, reportElement) {
     data: data,
     type: 'post',
     crossDomain: true,
-    success: function(data) {
-      pushInboxHash(reportHash);
-    },
+    success: function(data) {},
     error: function(jqXHR, textStatus) {console.log("error saving inbox report");},
-    timeout: 20000
+    timeout: 120000
   });
+  pushInboxHash(reportHash);
   gd_indicator();
 }
 
@@ -224,11 +205,51 @@ function parseInboxReport() {
         || reportText.indexOf('/images/game/towninfo/take_over.png') >= 0
         || reportText.indexOf('/images/game/towninfo/support.png') >= 0)
     ) {
-      let headerElement = document.getElementById("report_report_header");
+
+      // Build report hash using default method
+      let headerElement = document.getElementById("report_header");
       let dateElement = document.getElementById("report_date");
-      let headerText = headerElement.outerHTML;
-      let dateText = dateElement.outerHTML;
-      let reportHash = (headerText+dateText).report_hash();
+      let headerText = headerElement.innerText;
+      let dateText = dateElement.innerText;
+      let hashText = headerText+dateText;
+      let reportHash = hashText.report_hash();
+
+      // Try to build report hash using town ids (robust against object name changes)
+      try {
+        let towns = headerElement.getElementsByClassName('town_name');
+        if (towns.length === 2) {
+          let ids = [];
+          for (let m = 0; m < towns.length; m++) {
+            let href = towns[m].getElementsByTagName("a")[0].getAttribute("href");
+
+            // Remove hashtag prefix
+            if (href.slice(0,1) === '#') {
+              href = href.slice(1);
+            }
+            // Remove trailing =
+            for (let g = 0; g < 10; g++) {
+              if (href.slice(href.length-1) === '=') {
+                href = href.slice(0, href.length-1)
+              }
+            }
+
+            let townData = atob(href);
+            let townJson = JSON.parse(townData);
+            ids.push(townJson.id);
+          }
+          if (ids.length === 2) {
+            ids.push(dateText);
+            let hashText = ids.join('');
+            reportHash = hashText.report_hash();
+          }
+        }
+      } catch (e) {
+        console.log(e);
+      }
+      console.log('Parsed inbox report with hash: ' + reportHash);
+
+
+      // Add index button
       let addBtn = document.createElement('a');
       addBtn.setAttribute('href', '#');
       addBtn.setAttribute('id', 'gd_index_rep_');
@@ -325,33 +346,73 @@ function parseForumReport() {
 
         let reportHash = null;
         try {
-          // parse report hash
+          // === Build report hash to create a unique identifier for this report that is consistent between sessions
+          // Try to parse time string
           let header = reportElement.getElementsByClassName('published_report_header bold')[0];
-          let headerText = header.getElementsByClassName('bold')[0].innerText;
           let dateText = header.getElementsByClassName('reports_date small')[0].innerText;
-          let dateString = dateText;
           try {
-            let day = dateText.match(day_regex);
-            if (day != null) {
-              // Date is not today
-              day = day[0];
-            } else {
-              // Date is today
-              day = lang.formatDate(new Date());
-            }
             let time = dateText.match(time_regex);
-            if (time != null && day != null) {
-              dateString = day + '.' + time[0];
+            if (time != null) {
+              dateText = time[0];
             }
           } catch (e) {}
-          let reportText = headerText +'.'+ dateString;
-          reportText = reportText.trim().replace(/\s+/g, '.');
+
+          // Try to parse town ids from report header
+          let headerText = header.getElementsByClassName('bold')[0].innerText;
+          try {
+            let towns = header.getElementsByClassName('gp_town_link');
+            if (towns.length === 2) {
+              let ids = [];
+              for (let m = 0; m < towns.length; m++) {
+                let href = towns[m].getAttribute("href");
+                // Remove hashtag prefix
+                if (href.slice(0,1) === '#') {
+                  href = href.slice(1);
+                }
+                // Remove trailing =
+                for (let g = 0; g < 10; g++) {
+                  if (href.slice(href.length-1) === '=') {
+                    href = href.slice(0, href.length-1)
+                  }
+                }
+
+                let townData = atob(href);
+                let townJson = JSON.parse(townData);
+                ids.push(townJson.id);
+              }
+              if (ids.length === 2) {
+                headerText = ids.join('');
+              }
+            }
+          } catch (e) {}
+
+          // Try to parse units and buildings
+          let reportUnits = reportElement.getElementsByClassName('unit_icon40x40');
+          let reportBuildings = reportElement.getElementsByClassName('report_unit');
+          let reportDetails = reportElement.getElementsByClassName('report_details');
+          let reportContent = '';
+          try {
+            for (let u = 0; u < reportUnits.length; u++) {
+              reportContent += reportUnits[u].outerHTML;
+            }
+            for (let u = 0; u < reportBuildings.length; u++) {
+              reportContent += reportBuildings[u].outerHTML;
+            }
+            if (reportDetails.length === 1) {
+              reportContent += reportDetails[0].innerText;
+            }
+          } catch (e) {}
+
+          // Combine intel and generate hash
+          let reportText = dateText + headerText + reportContent;
           if (reportText!==null && reportText!=='') {
             reportHash = reportText.report_hash();
           }
+
         } catch(err) {
           reportHash = null;
         }
+        console.log('Parsed forum report with hash: ' + reportHash);
 
         let exists = false;
         if (reportHash !== null && reportHash !== 0) {
