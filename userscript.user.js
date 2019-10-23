@@ -1,28 +1,33 @@
+{literal}
 // ==UserScript==
-// @name         grepodata city indexer DEV
+// @name         grepodata city indexer {/literal}{$key}{literal}
 // @namespace    grepodata
-// @version      3.04
+// @version      {/literal}{$version}{literal}
 // @author       grepodata.com
-// @updateURL    https://api.grepodata.com/userscript/cityindexer_709c966982feb61f5797e8b642bb1a7a.user.js
-// @downloadURL	 https://api.grepodata.com/userscript/cityindexer_709c966982feb61f5797e8b642bb1a7a.user.js
-// @description  The grepodata city indexer script automatically collects enemy reports from your alliance forum and adds them to your unique enemy city index.
-// @include      http://nl63.grepolis.com/game/*
-// @include      https://nl63.grepolis.com/game/*
+// @updateURL    https://api.grepodata.com/userscript/cityindexer_{/literal}{$encrypted}{literal}.user.js
+// @downloadURL	 https://api.grepodata.com/userscript/cityindexer_{/literal}{$encrypted}{literal}.user.js
+// @description  The grepodata city indexer script allows you to collect enemy reports from your alliance forum and add them to your unique enemy city index.
+// @include      http://{/literal}{$world}{literal}.grepolis.com/game/*
+// @include      https://{/literal}{$world}{literal}.grepolis.com/game/*
 // @include      https://grepodata.com*
 // @exclude      view-source://*
 // @icon         https://grepodata.com/assets/images/grepodata_icon.ico
 // @copyright	   2016+, grepodata
 // ==/UserScript==
 
+// Stop Greasemonkey execution. Only Tampermonkey can run this script
+if ('undefined' === typeof GM_info.script.author) {
+  throw new Error("Stopped greasemonkey execution for grepodata city indexer. Please use Tampermonkey instead");
+}
+
 // Script parameters
-let gd_version = '3.04';
-let index_key = "04h4u8yu";
-let index_hash = "709c966982feb61f5797e8b642bb1a7a";
+let gd_version = "{/literal}{$version}{literal}";
+let index_key = "{/literal}{$key}{literal}";
+let index_hash = "{/literal}{$encrypted}{literal}";
 
 // Variables
 let gd_w = unsafeWindow || window, $ = gd_w.jQuery || jQuery;
 let time_regex = /([0-5]\d)(:)([0-5]\d)(:)([0-5]\d)(?!.*([0-5]\d)(:)([0-5]\d)(:)([0-5]\d))/gm;
-let day_regex = /([0-3]\d)(.)([0-3]\d)(.)([0-3]\d)(?=.*([0-5]\d)(:)([0-5]\d)(:)([0-5]\d))/gm;
 
 function Translate() {
   this.nl = {ADD:'Indexeren',SEND:'bezig..',ADDED:'Geindexeerd',MANUAL:'handmatig',NEVER:'nooit',AND:'en',VIEW:'Intel bekijken',CHECK_UPDATE:'Controleer op updates',ABOUT:'Deze tool verzamelt informatie over vijandige steden in een handig overzicht. Rapporten kunnen geindexeerd worden in een unieke index die gedeeld kan worden met alliantiegenoten',INDEX_LIST:'Je draagt momenteel bij aan de volgende indexen',COUNT_1:'Je hebt al ',COUNT_2:' rapporten verzameld in deze sessie',COLLECT_INBOX_1:'Verzamel intel uit mijn ',COLLECT_INBOX_2:'rapporten inbox',COLLECT_FORUM:'alliantie forum',COLLECT_MESSAGE:'berichten inbox'};
@@ -34,22 +39,6 @@ function Translate() {
       default:
         return this.en[field];
     }
-  };
-  this.formatDate = function(date) {
-    let join = '-';
-    let format = [];
-    let date_locale = Game.locale_lang.replace('_','-');
-    switch(date_locale.substring(0, 2)) {
-      case 'nl': format = [{day:'2-digit'},  {month:'2-digit'}, {year:'2-digit'}]; join = '-'; break;
-      case 'de': format = [{day:'2-digit'},  {month:'2-digit'}, {year:'2-digit'}]; join = '.'; break;
-      case 'en': format = [{year:'numeric'}, {month:'2-digit'}, {day:'2-digit'}];  join = '-'; break;
-      default: return null;
-    }
-    return [
-      date.toLocaleString(date_locale,format[0]),
-      date.toLocaleString(date_locale,format[1]),
-      date.toLocaleString(date_locale,format[2])
-    ].join(join);
   };
 }
 let lang = new Translate();
@@ -92,12 +81,11 @@ function addToIndexFromForum(reportId, reportElement, reportPoster, reportHash) 
     type: 'post',
     crossDomain: true,
     dataType: 'json',
-    success: function(data) {
-      pushForumHash(reportHash);
-    },
+    success: function(data) {},
     error: function(jqXHR, textStatus) {console.log("error saving forum report");},
-    timeout: 20000
+    timeout: 120000
   });
+  pushForumHash(reportHash);
   gd_indicator();
 }
 
@@ -129,12 +117,11 @@ function addToIndexFromInbox(reportHash, reportElement) {
     data: data,
     type: 'post',
     crossDomain: true,
-    success: function(data) {
-      pushInboxHash(reportHash);
-    },
+    success: function(data) {},
     error: function(jqXHR, textStatus) {console.log("error saving inbox report");},
-    timeout: 20000
+    timeout: 120000
   });
+  pushInboxHash(reportHash);
   gd_indicator();
 }
 
@@ -218,11 +205,51 @@ function parseInboxReport() {
         || reportText.indexOf('/images/game/towninfo/take_over.png') >= 0
         || reportText.indexOf('/images/game/towninfo/support.png') >= 0)
     ) {
-      let headerElement = document.getElementById("report_report_header");
+
+      // Build report hash using default method
+      let headerElement = document.getElementById("report_header");
       let dateElement = document.getElementById("report_date");
-      let headerText = headerElement.outerHTML;
-      let dateText = dateElement.outerHTML;
-      let reportHash = (headerText+dateText).report_hash();
+      let headerText = headerElement.innerText;
+      let dateText = dateElement.innerText;
+      let hashText = headerText+dateText;
+      let reportHash = hashText.report_hash();
+
+      // Try to build report hash using town ids (robust against object name changes)
+      try {
+        let towns = headerElement.getElementsByClassName('town_name');
+        if (towns.length === 2) {
+          let ids = [];
+          for (let m = 0; m < towns.length; m++) {
+            let href = towns[m].getElementsByTagName("a")[0].getAttribute("href");
+
+            // Remove hashtag prefix
+            if (href.slice(0,1) === '#') {
+              href = href.slice(1);
+            }
+            // Remove trailing =
+            for (let g = 0; g < 10; g++) {
+              if (href.slice(href.length-1) === '=') {
+                href = href.slice(0, href.length-1)
+              }
+            }
+
+            let townData = atob(href);
+            let townJson = JSON.parse(townData);
+            ids.push(townJson.id);
+          }
+          if (ids.length === 2) {
+            ids.push(dateText);
+            let hashText = ids.join('');
+            reportHash = hashText.report_hash();
+          }
+        }
+      } catch (e) {
+        console.log(e);
+      }
+      console.log('Parsed inbox report with hash: ' + reportHash);
+
+
+      // Add index button
       let addBtn = document.createElement('a');
       addBtn.setAttribute('href', '#');
       addBtn.setAttribute('id', 'gd_index_rep_');
@@ -319,33 +346,73 @@ function parseForumReport() {
 
         let reportHash = null;
         try {
-          // parse report hash
+          // === Build report hash to create a unique identifier for this report that is consistent between sessions
+          // Try to parse time string
           let header = reportElement.getElementsByClassName('published_report_header bold')[0];
-          let headerText = header.getElementsByClassName('bold')[0].innerText;
           let dateText = header.getElementsByClassName('reports_date small')[0].innerText;
-          let dateString = dateText;
           try {
-            let day = dateText.match(day_regex);
-            if (day != null) {
-              // Date is not today
-              day = day[0];
-            } else {
-              // Date is today
-              day = lang.formatDate(new Date());
-            }
             let time = dateText.match(time_regex);
-            if (time != null && day != null) {
-              dateString = day + '.' + time[0];
+            if (time != null) {
+              dateText = time[0];
             }
           } catch (e) {}
-          let reportText = headerText +'.'+ dateString;
-          reportText = reportText.trim().replace(/\s+/g, '.');
+
+          // Try to parse town ids from report header
+          let headerText = header.getElementsByClassName('bold')[0].innerText;
+          try {
+            let towns = header.getElementsByClassName('gp_town_link');
+            if (towns.length === 2) {
+              let ids = [];
+              for (let m = 0; m < towns.length; m++) {
+                let href = towns[m].getAttribute("href");
+                // Remove hashtag prefix
+                if (href.slice(0,1) === '#') {
+                  href = href.slice(1);
+                }
+                // Remove trailing =
+                for (let g = 0; g < 10; g++) {
+                  if (href.slice(href.length-1) === '=') {
+                    href = href.slice(0, href.length-1)
+                  }
+                }
+
+                let townData = atob(href);
+                let townJson = JSON.parse(townData);
+                ids.push(townJson.id);
+              }
+              if (ids.length === 2) {
+                headerText = ids.join('');
+              }
+            }
+          } catch (e) {}
+
+          // Try to parse units and buildings
+          let reportUnits = reportElement.getElementsByClassName('unit_icon40x40');
+          let reportBuildings = reportElement.getElementsByClassName('report_unit');
+          let reportDetails = reportElement.getElementsByClassName('report_details');
+          let reportContent = '';
+          try {
+            for (let u = 0; u < reportUnits.length; u++) {
+              reportContent += reportUnits[u].outerHTML;
+            }
+            for (let u = 0; u < reportBuildings.length; u++) {
+              reportContent += reportBuildings[u].outerHTML;
+            }
+            if (reportDetails.length === 1) {
+              reportContent += reportDetails[0].innerText;
+            }
+          } catch (e) {}
+
+          // Combine intel and generate hash
+          let reportText = dateText + headerText + reportContent;
           if (reportText!==null && reportText!=='') {
             reportHash = reportText.report_hash();
           }
+
         } catch(err) {
           reportHash = null;
         }
+        console.log('Parsed forum report with hash: ' + reportHash);
 
         let exists = false;
         if (reportHash !== null && reportHash !== 0) {
@@ -401,12 +468,6 @@ function settings() {
     settingsHtml = settingsHtml + '</p>' + (count>0?'<p>'+lang.get('COUNT_1')+count+lang.get('COUNT_2')+'.</p>':'') +
       '<hr>\n' +
       '\t\t\t<p style="    margin-bottom: 10px; margin-left: 10px;">'+lang.get('COLLECT_INBOX_1')+
-      // '<span style="background: url('+layoutUrl+') no-repeat -635px -117px;\n' +
-      // '    margin-right: 4px; position: relative; width: 26px; height: 26px; top: 6px; left: 0px; display: -webkit-inline-box; padding-top: 6px; padding-left: 6px;">\n' +
-      // '<span class="icon" style="background: url('+layoutUrl+') no-repeat -678px -669px;\n' +
-      // '    width: 24px; height: 21px; display: -webkit-inline-box;">\n' +
-      // '\t</span>\n' +
-      // '</span>'+
       '<strong>'+lang.get('COLLECT_INBOX_2')+'</strong>:</p>\n' +
       '\t\t\t<div style="margin-left: 30px;" class="checkbox_new inbox_manual'+(gd_settings.inbox=='manual'?' checked':'')+'">\n' +
       '\t\t\t\t<div class="cbx_icon"></div><div class="cbx_caption">'+lang.get('MANUAL')+'</div>\n' +
@@ -417,19 +478,7 @@ function settings() {
       '<p id="gd_s_saved_inbox" style="display: none; position: absolute; left: 50px; margin: 0;"><strong>Saved ✓</strong></p> '+
       '\t\t\t<br><br><br><hr>\n' +
       '\t\t\t<p style="    margin-bottom: 10px; margin-left: 10px;">' + lang.get('COLLECT_INBOX_1') +
-      // '<span style="background: url('+layoutUrl+') no-repeat -635px -117px;\n' +
-      // '    margin-right: 4px; position: relative; width: 27px; height: 26px; top: 6px; left: 0px; display: -webkit-inline-box; padding-top: 6px; padding-left: 5px;">\n' +
-      // '<span class="icon" style="background: url('+layoutUrl+') no-repeat -702px -669px;\n' +
-      // '    width: 24px; height: 21px; display: -webkit-inline-box;">\n' +
-      // '\t</span>\n' +
-      // '</span>' +
       '<strong>'+lang.get('COLLECT_FORUM')+'</strong> '+lang.get('AND')+' ' +
-      // '<span style="background: url('+layoutUrl+') no-repeat -635px -117px;\n' +
-      // '    margin-right: 4px; position: relative; width: 27px; height: 26px; top: 6px; left: 0px; display: -webkit-inline-box; padding-top: 6px; padding-left: 5px;">\n' +
-      // '<span class="icon" style="background: url('+layoutUrl+') no-repeat -606px -669px;\n' +
-      // '    width: 24px; height: 21px; display: -webkit-inline-box;">\n' +
-      // '\t</span>\n' +
-      // '</span>' +
       '<strong>'+lang.get('COLLECT_MESSAGE')+'</strong>:</p>\n' +
       '\t\t\t<div style="margin-left: 30px;" class="checkbox_new forum_manual'+(gd_settings.forum=='manual'?' checked':'')+'">\n' +
       '\t\t\t\t<div class="cbx_icon"></div><div class="cbx_caption">'+lang.get('MANUAL')+'</div>\n' +
@@ -565,7 +614,7 @@ function loadTownIntel(id) {
             'New userscript version available: ' +
             '<a href="https://api.grepodata.com/userscript/cityindexer_'+index_hash+'.user.js" class="gd-ext-ref" target="_blank" ' +
             'style="color: #c5ecdb; text-decoration: underline;">Update now!</a></div>';
-            $('.info_tab_content_'+id).append(updateHtml);
+          $('.info_tab_content_'+id).append(updateHtml);
           $('.gd-update-available').tooltip((b.hasOwnProperty('update_message')?b.update_message:b.latest_version));
         }
 
@@ -686,7 +735,7 @@ function loadTownIntel(id) {
           row = row + '<div style="display: table-cell;"><div><div class="origin_town_units" style="position: absolute; padding-left: 30px; margin: 5px 0 5px 0; '+(killed?'height: 37px;':'')+'">' + unitHtml + '</div></div></div>';
 
           // Wall
-          if (intel.wall != null && intel.wall != '' && intel.wall.indexOf('%') < 0) {
+          if (intel.wall !== null && intel.wall !== '' && (!isNaN(0) || intel.wall.indexOf('%') < 0)) {
             row = row +
               '<div style="display: table-cell; width: 50px; float: right;">' +
               '<div class="sprite-image" style="display: inline-block; font-weight: 600;">' +
@@ -744,10 +793,11 @@ function gd_indicator() {
 }
 
 function viewTownIntel(xhr) {
-  let town_id = xhr.responseText.match(/(?<=\[town\]).*?(?=\[\\\/town\])/gs)[0];
+  let town_id = xhr.responseText.match(/\[town\].*?(?=\[)/g)[0];
+  town_id = town_id.substring(6);
 
   // Add intel button and handle click event
-  let intelBtn = '<div id="gd_index_town_'+town_id+'" town_id="'+town_id+'" class="button_new gdtv'+town_id+'" style="float: right; bottom: 4px;">' +
+  let intelBtn = '<div id="gd_index_town_'+town_id+'" town_id="'+town_id+'" class="button_new gdtv'+town_id+'" style="float: right; bottom: 5px;">' +
     '<div class="left"></div>' +
     '<div class="right"></div>' +
     '<div class="caption js-caption">'+lang.get('VIEW')+'<div class="effect js-effect"></div></div></div>';
@@ -849,9 +899,6 @@ function messageObserver() {
         $('#new_index_waiting').get(0).style.display = 'block';
         $('#new_index_install_tips').get(0).style.display = 'none';
       }
-      //if ($('#new_index_install').get(0)) {
-      //  $('#new_index_install').get(0).style.display = 'none';
-      //}
       if ($('#userscript_version').get(0)) {
         $('#userscript_version').append('<div id="gd_version">'+gd_version+'</div>');
       }
@@ -871,4 +918,4 @@ if(gd_w.location.href.indexOf("grepodata.com") >= 0){
   // Indexer (in-game)
   enableCityIndex(index_key);
 }
-
+{/literal}
