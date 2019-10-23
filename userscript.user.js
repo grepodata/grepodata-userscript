@@ -29,19 +29,15 @@ let index_hash = "{/literal}{$encrypted}{literal}";
 let gd_w = unsafeWindow || window, $ = gd_w.jQuery || jQuery;
 let time_regex = /([0-5]\d)(:)([0-5]\d)(:)([0-5]\d)(?!.*([0-5]\d)(:)([0-5]\d)(:)([0-5]\d))/gm;
 
-function Translate() {
-  this.nl = {ADD:'Indexeren',SEND:'bezig..',ADDED:'Geindexeerd',MANUAL:'handmatig',NEVER:'nooit',AND:'en',VIEW:'Intel bekijken',CHECK_UPDATE:'Controleer op updates',ABOUT:'Deze tool verzamelt informatie over vijandige steden in een handig overzicht. Rapporten kunnen geindexeerd worden in een unieke index die gedeeld kan worden met alliantiegenoten',INDEX_LIST:'Je draagt momenteel bij aan de volgende indexen',COUNT_1:'Je hebt al ',COUNT_2:' rapporten verzameld in deze sessie',COLLECT_INBOX_1:'Verzamel intel uit mijn ',COLLECT_INBOX_2:'rapporten inbox',COLLECT_FORUM:'alliantie forum',COLLECT_MESSAGE:'berichten inbox'};
-  this.en = {ADD:'Index',SEND:'sending..',ADDED:'Indexed',MANUAL:'manual',NEVER:'never',AND:'and',VIEW:'View enemy city index',CHECK_UPDATE:'Check for updates',ABOUT:'This tool allows you to easily collects enemy city intelligence and add them to your very own private index that can be shared with your alliance',INDEX_LIST:'You are currently contributing intel to the following indexes',COUNT_1:'You have contributed ',COUNT_2:' reports in this session',COLLECT_INBOX_1:'Collect enemy intel from my ',COLLECT_INBOX_2:'reports inbox',COLLECT_FORUM:'alliance forum',COLLECT_MESSAGE:'message inbox'};
-  this.get = function(field) {
-    switch(Game.locale_lang.substring(0, 2)) {
-      case 'nl':
-        return this.nl[field];
-      default:
-        return this.en[field];
-    }
-  };
+// Set locale
+let translate = null;
+switch(Game.locale_lang.substring(0, 2)) {
+  case 'nl':
+    translate = {ADD:'Indexeren',SEND:'bezig..',ADDED:'Geindexeerd',VIEW:'Intel bekijken',CHECK_UPDATE:'Controleer op updates',ABOUT:'Deze tool verzamelt informatie over vijandige steden in een handig overzicht. Rapporten kunnen geindexeerd worden in een unieke index die gedeeld kan worden met alliantiegenoten',INDEX_LIST:'Je draagt momenteel bij aan de volgende indexen',COUNT_1:'Je hebt al ',COUNT_2:' rapporten verzameld in deze sessie',SHORTCUTS:'Toetsenbord sneltoetsen',SHORTCUTS_ENABLED:'Sneltoetsen inschakelen',SHORTCUTS_INBOX_PREV:'Vorige rapport (inbox)',SHORTCUTS_INBOX_NEXT:'Volgende rapport (inbox)',COLLECT_INTEL:'Intel verzamelen',COLLECT_INTEL_INBOX:'Inbox (voegt een "index+" knop toe aan inbox rapporten)',COLLECT_INTEL_FORUM:'Alliantie forum (voegt een "index+" knop toe aan alliantie forum rapporten)',SHORTCUT_FUNCTION:'Functie',SAVED:'Instellingen opgeslagen'};
+    break;
+  default:
+    translate = {ADD:'Index',SEND:'sending..',ADDED:'Indexed',VIEW:'View intel',CHECK_UPDATE:'Check for updates',ABOUT:'This tool allows you to easily collects enemy city intelligence and add them to your very own private index that can be shared with your alliance',INDEX_LIST:'You are currently contributing intel to the following indexes',COUNT_1:'You have contributed ',COUNT_2:' reports in this session',SHORTCUTS:'Keyboard shortcuts',SHORTCUTS_ENABLED:'Enable keyboard shortcuts',SHORTCUTS_INBOX_PREV:'Previous report (inbox)',SHORTCUTS_INBOX_NEXT:'Next report (inbox)',COLLECT_INTEL:'Collecting intel',COLLECT_INTEL_INBOX:'Forum (adds an "index+" button to inbox reports)',COLLECT_INTEL_FORUM:'Alliance forum (adds an "index+" button to alliance forum reports)',SHORTCUT_FUNCTION:'Function',SAVED:'Settings saved'};
 }
-let lang = new Translate();
 
 // report info is converted to a 32 bit hash to be used as unique id
 String.prototype.report_hash = function() {
@@ -72,7 +68,7 @@ function addToIndexFromForum(reportId, reportElement, reportPoster, reportHash) 
 
   $('.rh'+reportHash).each(function() {
     $(this).css( "color",'#36cd5b');
-    $(this).find('.middle').get(0).innerText = lang.get('ADDED') + ' ✓';
+    $(this).find('.middle').get(0).innerText = translate.ADDED + ' ✓';
     $(this).off("click");
   });
   $.ajax({
@@ -106,11 +102,11 @@ function addToIndexFromInbox(reportHash, reportElement) {
     'report_poster_ally_id': gd_w.Game.alliance_id || 0,
   };
 
-  if (gd_settings.inbox === 'manual') {
+  if (gd_settings.inbox === true) {
     let btn = document.getElementById("gd_index_rep_txt");
     let btnC = document.getElementById("gd_index_rep_");
     btnC.setAttribute('style', 'color: #36cd5b; float: right;');
-    btn.innerText = lang.get('ADDED') + ' ✓';
+    btn.innerText = translate.ADDED + ' ✓';
   }
   $.ajax({
     url: "https://api.grepodata.com/indexer/inboxreport",
@@ -267,9 +263,9 @@ function parseInboxReport() {
       }
       if (reportFound) {
         addBtn.setAttribute('style', 'color: #36cd5b; float: right;');
-        txtSpan.innerText = lang.get('ADDED') + ' ✓';
+        txtSpan.innerText = translate.ADDED + ' ✓';
       } else {
-        txtSpan.innerText = lang.get('ADD') + ' +';
+        txtSpan.innerText = translate.ADD + ' +';
       }
 
       txtSpan.setAttribute('class', 'middle');
@@ -283,13 +279,35 @@ function parseInboxReport() {
       if (!reportFound) {
         addBtn.addEventListener('click', function() {
           if ($('#gd_index_rep_txt').get(0)) {
-            $('#gd_index_rep_txt').get(0).innerText = lang.get('SEND');
+            $('#gd_index_rep_txt').get(0).innerText = translate.SEND;
           }
           addToIndexFromInbox(reportHash, reportElement);
         }, false);
       }
       footerElement.appendChild(addBtn);
     }
+
+    // Handle inbox keyboard shortcuts
+    document.onkeyup = function (e) {
+      if (gd_settings.keys_enabled === true && !['textarea', 'input'].includes(e.srcElement.tagName.toLowerCase()) && reportElement !== null) {
+        switch (e.key) {
+          case gd_settings.key_inbox_prev:
+            let prev = reportElement.getElementsByClassName('last_report game_arrow_left');
+            if (prev.length === 1 && prev[0] != null) {
+              prev[0].click();
+            }
+            break;
+          case gd_settings.key_inbox_next:
+            let next = reportElement.getElementsByClassName('next_report game_arrow_right');
+            if (next.length === 1 && next[0] != null) {
+              next[0].click();
+            }
+            break;
+          default:
+            break;
+        }
+      }
+    };
   }
 }
 
@@ -428,17 +446,17 @@ function parseForumReport() {
         }
         if (bSpy === true) {
           $(reportElement).append('<div class="gd_indexer_footer" style="background: #fff; height: 28px;">\n' +
-            '    <a href="#" id="gd_index_f_'+reportId+'" report_hash="'+reportHash+'" report_id="'+reportId+'" class="button rh'+reportHash+'" style="float: right; top: 1px;"><span class="left"><span class="right"><span id="gd_index_f_txt_'+reportId+'" class="middle">'+lang.get('ADD')+' +</span></span></span></a>\n' +
+            '    <a href="#" id="gd_index_f_'+reportId+'" report_hash="'+reportHash+'" report_id="'+reportId+'" class="button rh'+reportHash+'" style="float: right; top: 1px;"><span class="left"><span class="right"><span id="gd_index_f_txt_'+reportId+'" class="middle">'+translate.ADD+' +</span></span></span></a>\n' +
             '    </div>');
         } else {
           $(reportElement).append('<div class="gd_indexer_footer" style="height: 28px; margin-top: -28px;">\n' +
-            '    <a href="#" id="gd_index_f_'+reportId+'" report_hash="'+reportHash+'" report_id="'+reportId+'" class="button rh'+reportHash+'" style="float: right; top: 1px;"><span class="left"><span class="right"><span id="gd_index_f_txt_'+reportId+'" class="middle">'+lang.get('ADD')+' +</span></span></span></a>\n' +
+            '    <a href="#" id="gd_index_f_'+reportId+'" report_hash="'+reportHash+'" report_id="'+reportId+'" class="button rh'+reportHash+'" style="float: right; top: 1px;"><span class="left"><span class="right"><span id="gd_index_f_txt_'+reportId+'" class="middle">'+translate.ADD+' +</span></span></span></a>\n' +
             '    </div>');
         }
 
         if (exists===true) {
           $('#gd_index_f_' + reportId).get(0).style.color = '#36cd5b';
-          $('#gd_index_f_txt_' + reportId).get(0).innerText = lang.get('ADDED') + ' ✓';
+          $('#gd_index_f_txt_' + reportId).get(0).innerText = translate.ADDED + ' ✓';
         } else {
           $('#gd_index_f_' + reportId).click(function () {
             addForumReportById($(this).attr('report_id'), $(this).attr('report_hash'));
@@ -450,51 +468,62 @@ function parseForumReport() {
 }
 
 let gd_settings = {
-  inbox: 'manual',
-  forum: 'manual'
+  inbox: true,
+  forum: true,
+  keys_enabled: true,
+  key_inbox_prev: '[',
+  key_inbox_next: ']',
 };
 function settings() {
   if (!$("#gd_indexer").get(0)) {
     $(".settings-menu ul:last").append('<li id="gd_li"><svg aria-hidden="true" data-prefix="fas" data-icon="university" class="svg-inline--fa fa-university fa-w-16" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="color: #2E4154;width: 16px;width: 15px;vertical-align: middle;margin-top: -2px;"><path fill="currentColor" d="M496 128v16a8 8 0 0 1-8 8h-24v12c0 6.627-5.373 12-12 12H60c-6.627 0-12-5.373-12-12v-12H24a8 8 0 0 1-8-8v-16a8 8 0 0 1 4.941-7.392l232-88a7.996 7.996 0 0 1 6.118 0l232 88A8 8 0 0 1 496 128zm-24 304H40c-13.255 0-24 10.745-24 24v16a8 8 0 0 0 8 8h464a8 8 0 0 0 8-8v-16c0-13.255-10.745-24-24-24zM96 192v192H60c-6.627 0-12 5.373-12 12v20h416v-20c0-6.627-5.373-12-12-12h-36V192h-64v192h-64V192h-64v192h-64V192H96z"></path></svg><a id="gd_indexer" href="#" style="    margin-left: 4px;">GrepoData City Indexer</a></li>');
 
+    // Intro
     // let layoutUrl = 'https' + window.getComputedStyle(document.getElementsByClassName('icon')[0], null).background.split('("https')[1].split('"')[0];
     let settingsHtml = '<div id="gd_settings_container" style="display: none; position: absolute; top: 0; bottom: 0; right: 0; left: 232px; padding: 0px; overflow: auto;">\n' +
       '    <div id="gd_settings" style="position: relative;">\n' +
       '\t\t<div class="section" id="s_gd_city_indexer">\n' +
       '\t\t\t<div class="game_header bold" style="margin: -5px -10px 15px -10px; padding-left: 10px;">GrepoData city indexer settings</div>\n' +
-      '\t\t\t<p>'+lang.get('ABOUT')+'.</p>' +
-      '\t\t\t<p>'+lang.get('INDEX_LIST')+': ';
+      '\t\t\t<p>'+translate.ABOUT+'.</p>' +
+      '\t\t\t<p>'+translate.INDEX_LIST+': ';
     gd_w.gdIndexScript.forEach(function(i) {settingsHtml = settingsHtml + '<a href="https://grepodata.com/indexer/'+i+'" target="_blank">'+i+'</a> ';});
-    settingsHtml = settingsHtml + '</p>' + (count>0?'<p>'+lang.get('COUNT_1')+count+lang.get('COUNT_2')+'.</p>':'') +
-      '<hr>\n' +
-      '\t\t\t<p style="    margin-bottom: 10px; margin-left: 10px;">'+lang.get('COLLECT_INBOX_1')+
-      '<strong>'+lang.get('COLLECT_INBOX_2')+'</strong>:</p>\n' +
-      '\t\t\t<div style="margin-left: 30px;" class="checkbox_new inbox_manual'+(gd_settings.inbox=='manual'?' checked':'')+'">\n' +
-      '\t\t\t\t<div class="cbx_icon"></div><div class="cbx_caption">'+lang.get('MANUAL')+'</div>\n' +
+    settingsHtml = settingsHtml + '</p>' + (count>0?'<p>'+translate.COUNT_1+count+translate.COUNT_2+'.</p>':'') +
+      '<p id="gd_s_saved" style="display: none; position: absolute; left: 50px; margin: 0;"><strong>'+translate.SAVED+' ✓</strong></p> '+
+      '<br/><hr>\n';
+
+    // Forum intel settings
+    settingsHtml += '\t\t\t<p style="margin-bottom: 10px; margin-left: 10px;"><strong>'+translate.COLLECT_INTEL+'</strong></p>\n' +
+      '\t\t\t<div style="margin-left: 30px;" class="checkbox_new inbox_gd_enabled'+(gd_settings.inbox===true?' checked':'')+'">\n' +
+      '\t\t\t\t<div class="cbx_icon"></div><div class="cbx_caption">'+translate.COLLECT_INTEL_INBOX+'</div>\n' +
       '\t\t\t</div>\n' +
-      '\t\t\t<div style="margin-left: 30px;" class="checkbox_new inbox_never'+(gd_settings.inbox=='never'?' checked':'')+'">\n' +
-      '\t\t\t\t<div class="cbx_icon"></div><div class="cbx_caption">'+lang.get('NEVER')+'</div>\n' +
+      '\t\t\t<div style="margin-left: 30px;" class="checkbox_new forum_gd_enabled'+(gd_settings.forum===true?' checked':'')+'">\n' +
+      '\t\t\t\t<div class="cbx_icon"></div><div class="cbx_caption">'+translate.COLLECT_INTEL_FORUM+'</div>\n' +
       '\t\t\t</div>\n' +
-      '<p id="gd_s_saved_inbox" style="display: none; position: absolute; left: 50px; margin: 0;"><strong>Saved ✓</strong></p> '+
-      '\t\t\t<br><br><br><hr>\n' +
-      '\t\t\t<p style="    margin-bottom: 10px; margin-left: 10px;">' + lang.get('COLLECT_INBOX_1') +
-      '<strong>'+lang.get('COLLECT_FORUM')+'</strong> '+lang.get('AND')+' ' +
-      '<strong>'+lang.get('COLLECT_MESSAGE')+'</strong>:</p>\n' +
-      '\t\t\t<div style="margin-left: 30px;" class="checkbox_new forum_manual'+(gd_settings.forum=='manual'?' checked':'')+'">\n' +
-      '\t\t\t\t<div class="cbx_icon"></div><div class="cbx_caption">'+lang.get('MANUAL')+'</div>\n' +
-      '\t\t\t</div>\n' +
-      '\t\t\t<div style="margin-left: 30px;" class="checkbox_new forum_never'+(gd_settings.forum=='never'?' checked':'')+'">\n' +
-      '\t\t\t\t<div class="cbx_icon"></div><div class="cbx_caption">'+lang.get('NEVER')+'</div>\n' +
-      '\t\t\t</div>\n' +
-      '<p id="gd_s_saved_forum" style="display: none; position: absolute; left: 50px; margin: 0;"><strong>Saved ✓</strong></p> '+
-      '\t\t\t<br><br><br><hr>\n' +
-      '\t\t\t<a href="https://grepodata.com/indexer/'+index_key+'" target="_blank">'+lang.get('VIEW')+'</a>\n' +
-      '<p style="font-style: italic; font-size: 10px; float: right; margin:0px;">GrepoData city indexer v'+gd_version+' [<a href="https://api.grepodata.com/userscript/cityindexer_'+index_hash+'.user.js" target="_blank">'+lang.get('CHECK_UPDATE')+'</a>]</p>'+
+      '\t\t\t<br><br><hr>\n';
+
+    // Keyboard shortcut settings
+    settingsHtml += '\t\t\t<p style="margin-bottom: 10px; margin-left: 10px;"><strong>'+translate.SHORTCUTS+'</strong></p>\n' +
+      '\t\t\t<div style="margin-left: 30px;" class="checkbox_new keys_enabled_gd_enabled'+(gd_settings.keys_enabled===true?' checked':'')+'">\n' +
+      '\t\t\t\t<div class="cbx_icon"></div><div class="cbx_caption">'+translate.SHORTCUTS_ENABLED+'</div>\n' +
+      '\t\t\t</div><br/><br/>\n' +
+      '\t\t\t<div class="gd_shortcut_settings" style="margin-left: 45px; margin-right: 20px; border: 1px solid black;"><table style="width: 100%;">\n' +
+      '\t\t\t\t<tr><th style="width: 50%;">'+translate.SHORTCUT_FUNCTION+'</th><th>Shortcut</th></tr>\n' +
+      '\t\t\t\t<tr><td>'+translate.SHORTCUTS_INBOX_PREV+'</td><td>'+gd_settings.key_inbox_prev+'</td></tr>\n' +
+      '\t\t\t\t<tr><td>'+translate.SHORTCUTS_INBOX_NEXT+'</td><td>'+gd_settings.key_inbox_next+'</td></tr>\n' +
+      '\t\t\t</table></div>\n' +
+      '\t\t\t<br/><hr>\n';
+
+    // Footer
+    settingsHtml += '\t\t\t<a href="https://grepodata.com/indexer/'+index_key+'" target="_blank">'+translate.VIEW+'</a>\n' +
+      '<p style="font-style: italic; font-size: 10px; float: right; margin:0px;">GrepoData city indexer v'+gd_version+' [<a href="https://api.grepodata.com/userscript/cityindexer_'+index_hash+'.user.js" target="_blank">'+translate.CHECK_UPDATE+'</a>]</p>'+
       '\t\t</div>\n' +
       '    </div>\n' +
       '</div>';
+
+    // Insert settings menu
     $(".settings-menu").parent().append(settingsHtml);
 
+    // Handle settings events
     $(".settings-link").click(function () {
       $('#gd_settings_container').get(0).style.display = "none";
       $('.settings-container').get(0).style.display = "block";
@@ -506,10 +535,9 @@ function settings() {
       $('#gd_settings_container').get(0).style.display = "block";
     });
 
-    $(".inbox_manual").click(function () { settingsCbx('inbox','manual'); });
-    $(".inbox_never").click(function () { settingsCbx('inbox','never'); });
-    $(".forum_manual").click(function () { settingsCbx('forum','manual'); });
-    $(".forum_never").click(function () { settingsCbx('forum','never'); });
+    $(".inbox_gd_enabled").click(function () { settingsCbx('inbox', !gd_settings.inbox); if (!gd_settings.inbox) {settingsCbx('keys_enabled', false);} });
+    $(".forum_gd_enabled").click(function () { settingsCbx('forum', !gd_settings.forum); });
+    $(".keys_enabled_gd_enabled").click(function () { settingsCbx('keys_enabled', !gd_settings.keys_enabled); });
 
     if (gdsettings===true) {
       $('.settings-container').get(0).style.display = "none";
@@ -518,16 +546,20 @@ function settings() {
   }
 }
 
-function settingsCbx(type, frequency) {
-  if (frequency === 'manual') {$('.'+type+'_manual').get(0).classList.add("checked");}
-  else {$('.'+type+'_manual').get(0).classList.remove("checked");}
-  if (frequency === 'never') {$('.'+type+'_never').get(0).classList.add("checked");}
-  else {$('.'+type+'_never').get(0).classList.remove("checked");}
-  gd_settings[type] = frequency;
+function settingsCbx(type, value) {
+  // Update class
+  if (value === true) {$('.'+type+'_gd_enabled').get(0).classList.add("checked");}
+  else {$('.'+type+'_gd_enabled').get(0).classList.remove("checked");}
+  if (type === 'keys_enabled') {
+    $('.gd_shortcut_settings').get(0).style.display = (value?'block':'none');
+  }
+
+  // Set value
+  gd_settings[type] = value;
   saveSettings();
-  $('#gd_s_saved_'+type).get(0).style.display = 'block';
+  $('#gd_s_saved').get(0).style.display = 'block';
   setTimeout(function () {
-    if($('#gd_s_saved_'+type).get(0)){$('#gd_s_saved_'+type).get(0).style.display = 'none';}
+    if($('#gd_s_saved').get(0)){$('#gd_s_saved').get(0).style.display = 'none';}
   }, 3000);
 }
 
@@ -538,13 +570,8 @@ function readSettings() {
   let result = document.cookie.match(new RegExp('gd_city_indexer_s=([^;]+)'));
   result && (result = JSON.parse(result[1]));
   if (result !== null) {
-    // Disable auto uploading to comply with the rules => only manual uploads are allowed
-    if (!result.forum || result.forum!=='never') {
-      result.forum='manual';
-    }
-    if (!result.inbox || result.inbox!=='never') {
-      result.inbox='manual';
-    }
+    result.forum = result.forum === true || result.forum === 'manual';
+    result.inbox = result.inbox === true || result.inbox === 'manual';
     gd_settings = result;
   }
 }
@@ -800,7 +827,7 @@ function viewTownIntel(xhr) {
   let intelBtn = '<div id="gd_index_town_'+town_id+'" town_id="'+town_id+'" class="button_new gdtv'+town_id+'" style="float: right; bottom: 5px;">' +
     '<div class="left"></div>' +
     '<div class="right"></div>' +
-    '<div class="caption js-caption">'+lang.get('VIEW')+'<div class="effect js-effect"></div></div></div>';
+    '<div class="caption js-caption">'+translate.VIEW+'<div class="effect js-effect"></div></div></div>';
   $('.info_tab_content_'+town_id + ' > .game_inner_box > .game_border > ul.game_list > li.odd').filter(':first').append(intelBtn);
 
   // Handle click
@@ -828,7 +855,7 @@ function enableCityIndex(key) {
         switch (action) {
           case "/report/view":
             // Parse reports straight from inbox
-            if (gd_settings.inbox === 'manual') {
+            if (gd_settings.inbox === true) {
               parseInboxReport();
             }
             break;
@@ -837,7 +864,7 @@ function enableCityIndex(key) {
           case "/message/view":
           case "/alliance_forum/forum":
             // Parse reports from forum and messages
-            if (gd_settings.forum === 'manual') {
+            if (gd_settings.forum === true) {
               setTimeout(parseForumReport, 200);
             }
             break;
