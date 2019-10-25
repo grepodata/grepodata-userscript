@@ -30,13 +30,15 @@ let gd_w = unsafeWindow || window, $ = gd_w.jQuery || jQuery;
 let time_regex = /([0-5]\d)(:)([0-5]\d)(:)([0-5]\d)(?!.*([0-5]\d)(:)([0-5]\d)(:)([0-5]\d))/gm;
 
 // Set locale
-let translate = null;
-switch(Game.locale_lang.substring(0, 2)) {
-  case 'nl':
-    translate = {ADD:'Indexeren',SEND:'bezig..',ADDED:'Geindexeerd',VIEW:'Intel bekijken',CHECK_UPDATE:'Controleer op updates',ABOUT:'Deze tool verzamelt informatie over vijandige steden in een handig overzicht. Rapporten kunnen geindexeerd worden in een unieke index die gedeeld kan worden met alliantiegenoten',INDEX_LIST:'Je draagt momenteel bij aan de volgende indexen',COUNT_1:'Je hebt al ',COUNT_2:' rapporten verzameld in deze sessie',SHORTCUTS:'Toetsenbord sneltoetsen',SHORTCUTS_ENABLED:'Sneltoetsen inschakelen',SHORTCUTS_INBOX_PREV:'Vorige rapport (inbox)',SHORTCUTS_INBOX_NEXT:'Volgende rapport (inbox)',COLLECT_INTEL:'Intel verzamelen',COLLECT_INTEL_INBOX:'Inbox (voegt een "index+" knop toe aan inbox rapporten)',COLLECT_INTEL_FORUM:'Alliantie forum (voegt een "index+" knop toe aan alliantie forum rapporten)',SHORTCUT_FUNCTION:'Functie',SAVED:'Instellingen opgeslagen'};
-    break;
-  default:
-    translate = {ADD:'Index',SEND:'sending..',ADDED:'Indexed',VIEW:'View intel',CHECK_UPDATE:'Check for updates',ABOUT:'This tool allows you to easily collects enemy city intelligence and add them to your very own private index that can be shared with your alliance',INDEX_LIST:'You are currently contributing intel to the following indexes',COUNT_1:'You have contributed ',COUNT_2:' reports in this session',SHORTCUTS:'Keyboard shortcuts',SHORTCUTS_ENABLED:'Enable keyboard shortcuts',SHORTCUTS_INBOX_PREV:'Previous report (inbox)',SHORTCUTS_INBOX_NEXT:'Next report (inbox)',COLLECT_INTEL:'Collecting intel',COLLECT_INTEL_INBOX:'Forum (adds an "index+" button to inbox reports)',COLLECT_INTEL_FORUM:'Alliance forum (adds an "index+" button to alliance forum reports)',SHORTCUT_FUNCTION:'Function',SAVED:'Settings saved'};
+let translate = {ADD:'Index',SEND:'sending..',ADDED:'Indexed',VIEW:'View intel',CHECK_UPDATE:'Check for updates',ABOUT:'This tool allows you to easily collects enemy city intelligence and add them to your very own private index that can be shared with your alliance',INDEX_LIST:'You are currently contributing intel to the following indexes',COUNT_1:'You have contributed ',COUNT_2:' reports in this session',SHORTCUTS:'Keyboard shortcuts',SHORTCUTS_ENABLED:'Enable keyboard shortcuts',SHORTCUTS_INBOX_PREV:'Previous report (inbox)',SHORTCUTS_INBOX_NEXT:'Next report (inbox)',COLLECT_INTEL:'Collecting intel',COLLECT_INTEL_INBOX:'Forum (adds an "index+" button to inbox reports)',COLLECT_INTEL_FORUM:'Alliance forum (adds an "index+" button to alliance forum reports)',SHORTCUT_FUNCTION:'Function',SAVED:'Settings saved'};
+if (Game !== null) {
+  switch(Game.locale_lang.substring(0, 2)) {
+    case 'nl':
+      translate = {ADD:'Indexeren',SEND:'bezig..',ADDED:'Geindexeerd',VIEW:'Intel bekijken',CHECK_UPDATE:'Controleer op updates',ABOUT:'Deze tool verzamelt informatie over vijandige steden in een handig overzicht. Rapporten kunnen geindexeerd worden in een unieke index die gedeeld kan worden met alliantiegenoten',INDEX_LIST:'Je draagt momenteel bij aan de volgende indexen',COUNT_1:'Je hebt al ',COUNT_2:' rapporten verzameld in deze sessie',SHORTCUTS:'Toetsenbord sneltoetsen',SHORTCUTS_ENABLED:'Sneltoetsen inschakelen',SHORTCUTS_INBOX_PREV:'Vorige rapport (inbox)',SHORTCUTS_INBOX_NEXT:'Volgende rapport (inbox)',COLLECT_INTEL:'Intel verzamelen',COLLECT_INTEL_INBOX:'Inbox (voegt een "index+" knop toe aan inbox rapporten)',COLLECT_INTEL_FORUM:'Alliantie forum (voegt een "index+" knop toe aan alliantie forum rapporten)',SHORTCUT_FUNCTION:'Functie',SAVED:'Instellingen opgeslagen'};
+      break;
+    default:
+      break;
+  }
 }
 
 // report info is converted to a 32 bit hash to be used as unique id
