@@ -31,7 +31,7 @@ let time_regex = /([0-5]\d)(:)([0-5]\d)(:)([0-5]\d)(?!.*([0-5]\d)(:)([0-5]\d)(:)
 
 // Set locale
 let translate = {ADD:'Index',SEND:'sending..',ADDED:'Indexed',VIEW:'View intel',CHECK_UPDATE:'Check for updates',ABOUT:'This tool allows you to easily collects enemy city intelligence and add them to your very own private index that can be shared with your alliance',INDEX_LIST:'You are currently contributing intel to the following indexes',COUNT_1:'You have contributed ',COUNT_2:' reports in this session',SHORTCUTS:'Keyboard shortcuts',SHORTCUTS_ENABLED:'Enable keyboard shortcuts',SHORTCUTS_INBOX_PREV:'Previous report (inbox)',SHORTCUTS_INBOX_NEXT:'Next report (inbox)',COLLECT_INTEL:'Collecting intel',COLLECT_INTEL_INBOX:'Forum (adds an "index+" button to inbox reports)',COLLECT_INTEL_FORUM:'Alliance forum (adds an "index+" button to alliance forum reports)',SHORTCUT_FUNCTION:'Function',SAVED:'Settings saved'};
-if (Game !== null) {
+if ('undefined' !== typeof Game) {
   switch(Game.locale_lang.substring(0, 2)) {
     case 'nl':
       translate = {ADD:'Indexeren',SEND:'bezig..',ADDED:'Geindexeerd',VIEW:'Intel bekijken',CHECK_UPDATE:'Controleer op updates',ABOUT:'Deze tool verzamelt informatie over vijandige steden in een handig overzicht. Rapporten kunnen geindexeerd worden in een unieke index die gedeeld kan worden met alliantiegenoten',INDEX_LIST:'Je draagt momenteel bij aan de volgende indexen',COUNT_1:'Je hebt al ',COUNT_2:' rapporten verzameld in deze sessie',SHORTCUTS:'Toetsenbord sneltoetsen',SHORTCUTS_ENABLED:'Sneltoetsen inschakelen',SHORTCUTS_INBOX_PREV:'Vorige rapport (inbox)',SHORTCUTS_INBOX_NEXT:'Volgende rapport (inbox)',COLLECT_INTEL:'Intel verzamelen',COLLECT_INTEL_INBOX:'Inbox (voegt een "index+" knop toe aan inbox rapporten)',COLLECT_INTEL_FORUM:'Alliantie forum (voegt een "index+" knop toe aan alliantie forum rapporten)',SHORTCUT_FUNCTION:'Functie',SAVED:'Instellingen opgeslagen'};
@@ -192,7 +192,6 @@ function parseInboxReport() {
     let footerText = footerElement.outerHTML;
     if (footerText.indexOf('gd_index_rep_') < 0
       && reportText.indexOf('report_town_bg_quest') < 0
-      && reportText.indexOf('flagpole ghost_town') < 0
       && reportText.indexOf('support_report_cities') < 0
       && reportText.indexOf('big_horizontal_report_separator') < 0
       && reportText.indexOf('report_town_bg_attack_spot') < 0
@@ -290,7 +289,7 @@ function parseInboxReport() {
     }
 
     // Handle inbox keyboard shortcuts
-    document.onkeyup = function (e) {
+    document.addEventListener('keyup', function (e) {
       if (gd_settings.keys_enabled === true && !['textarea', 'input'].includes(e.srcElement.tagName.toLowerCase()) && reportElement !== null) {
         switch (e.key) {
           case gd_settings.key_inbox_prev:
@@ -309,7 +308,7 @@ function parseInboxReport() {
             break;
         }
       }
-    };
+    });
   }
 }
 
@@ -863,8 +862,10 @@ function enableCityIndex(key) {
             break;
           case "/town_info/info":
             viewTownIntel(xhr);
-          case "/message/view":
-          case "/alliance_forum/forum":
+            break;
+          case "/message/view": // catch inbox previews
+          case "/message/preview": // catch inbox messages
+          case "/alliance_forum/forum": // catch forum messages
             // Parse reports from forum and messages
             if (gd_settings.forum === true) {
               setTimeout(parseForumReport, 200);
