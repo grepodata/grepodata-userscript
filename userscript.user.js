@@ -30,16 +30,18 @@ let gd_w = unsafeWindow || window, $ = gd_w.jQuery || jQuery;
 let time_regex = /([0-5]\d)(:)([0-5]\d)(:)([0-5]\d)(?!.*([0-5]\d)(:)([0-5]\d)(:)([0-5]\d))/gm;
 
 // Set locale
-let translate = {ADD:'Index',SEND:'sending..',ADDED:'Indexed',VIEW:'View intel',CHECK_UPDATE:'Check for updates',ABOUT:'This tool allows you to easily collects enemy city intelligence and add them to your very own private index that can be shared with your alliance',INDEX_LIST:'You are currently contributing intel to the following indexes',COUNT_1:'You have contributed ',COUNT_2:' reports in this session',SHORTCUTS:'Keyboard shortcuts',SHORTCUTS_ENABLED:'Enable keyboard shortcuts',SHORTCUTS_INBOX_PREV:'Previous report (inbox)',SHORTCUTS_INBOX_NEXT:'Next report (inbox)',COLLECT_INTEL:'Collecting intel',COLLECT_INTEL_INBOX:'Forum (adds an "index+" button to inbox reports)',COLLECT_INTEL_FORUM:'Alliance forum (adds an "index+" button to alliance forum reports)',SHORTCUT_FUNCTION:'Function',SAVED:'Settings saved'};
+let translate = {ADD:'Index',SEND:'sending..',ADDED:'Indexed',VIEW:'View intel',STATS_LINK:'Show buttons that link to player/alliance statistics on grepodata.com',STATS_LINK_TITLE:'Link to statistics',CHECK_UPDATE:'Check for updates',ABOUT:'This tool allows you to easily collects enemy city intelligence and add them to your very own private index that can be shared with your alliance',INDEX_LIST:'You are currently contributing intel to the following indexes',COUNT_1:'You have contributed ',COUNT_2:' reports in this session',SHORTCUTS:'Keyboard shortcuts',SHORTCUTS_ENABLED:'Enable keyboard shortcuts',SHORTCUTS_INBOX_PREV:'Previous report (inbox)',SHORTCUTS_INBOX_NEXT:'Next report (inbox)',COLLECT_INTEL:'Collecting intel',COLLECT_INTEL_INBOX:'Forum (adds an "index+" button to inbox reports)',COLLECT_INTEL_FORUM:'Alliance forum (adds an "index+" button to alliance forum reports)',SHORTCUT_FUNCTION:'Function',SAVED:'Settings saved'};
 if ('undefined' !== typeof Game) {
   switch(Game.locale_lang.substring(0, 2)) {
     case 'nl':
-      translate = {ADD:'Indexeren',SEND:'bezig..',ADDED:'Geindexeerd',VIEW:'Intel bekijken',CHECK_UPDATE:'Controleer op updates',ABOUT:'Deze tool verzamelt informatie over vijandige steden in een handig overzicht. Rapporten kunnen geindexeerd worden in een unieke index die gedeeld kan worden met alliantiegenoten',INDEX_LIST:'Je draagt momenteel bij aan de volgende indexen',COUNT_1:'Je hebt al ',COUNT_2:' rapporten verzameld in deze sessie',SHORTCUTS:'Toetsenbord sneltoetsen',SHORTCUTS_ENABLED:'Sneltoetsen inschakelen',SHORTCUTS_INBOX_PREV:'Vorige rapport (inbox)',SHORTCUTS_INBOX_NEXT:'Volgende rapport (inbox)',COLLECT_INTEL:'Intel verzamelen',COLLECT_INTEL_INBOX:'Inbox (voegt een "index+" knop toe aan inbox rapporten)',COLLECT_INTEL_FORUM:'Alliantie forum (voegt een "index+" knop toe aan alliantie forum rapporten)',SHORTCUT_FUNCTION:'Functie',SAVED:'Instellingen opgeslagen'};
+      translate = {ADD:'Indexeren',SEND:'bezig..',ADDED:'Geindexeerd',VIEW:'Intel bekijken',STATS_LINK:'Knoppen toevoegen die linken naar speler/alliantie statistieken op grepodata.com',STATS_LINK_TITLE:'Link naar statistieken',CHECK_UPDATE:'Controleer op updates',ABOUT:'Deze tool verzamelt informatie over vijandige steden in een handig overzicht. Rapporten kunnen geindexeerd worden in een unieke index die gedeeld kan worden met alliantiegenoten',INDEX_LIST:'Je draagt momenteel bij aan de volgende indexen',COUNT_1:'Je hebt al ',COUNT_2:' rapporten verzameld in deze sessie',SHORTCUTS:'Toetsenbord sneltoetsen',SHORTCUTS_ENABLED:'Sneltoetsen inschakelen',SHORTCUTS_INBOX_PREV:'Vorige rapport (inbox)',SHORTCUTS_INBOX_NEXT:'Volgende rapport (inbox)',COLLECT_INTEL:'Intel verzamelen',COLLECT_INTEL_INBOX:'Inbox (voegt een "index+" knop toe aan inbox rapporten)',COLLECT_INTEL_FORUM:'Alliantie forum (voegt een "index+" knop toe aan alliantie forum rapporten)',SHORTCUT_FUNCTION:'Functie',SAVED:'Instellingen opgeslagen'};
       break;
     default:
       break;
   }
 }
+
+let gd_icon = "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABoAAAAXCAYAAAAV1F8QAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAYdEVYdFNvZnR3YXJlAHBhaW50Lm5ldCA0LjAuNvyMY98AAAG0SURBVEhLYwACASA2AGIHGmGQ2SA7GGzf7oj4//5g7v/3B7L+vz+U///NVv//r9ZY/3+7K/b/683e/9/tSSTIf7M9DGhGzv8PR4r/v9uX9v/D0TKw+MdTzf9BdoAsSnm13gnEoQn+dLYLRKcAMUPBm62BYMH/f/9QFYPMfL3JE0QXQCzaFkIziz6d60FYBApvdIt07AJQ+ORgkJlfrs2DW1T9ar0jxRZJ7JkDxshiIDPf744B0dUgiwrebA8l2iJsBuISB5l5q58dREOC7u3OKJpZdHmKEsKi1xvdybIIpAamDpdFbze5ISzClrypZdGLZboIiz6d7cRrES4DibHozdYghEWfL0ygmUVvtwcjLPpwuJBmFj1ZpImw6N3uBNpZNE8ByaK9KXgtIheDzHy12gJuUfG7falYLSIHI5sBMvPlCiMQXQy2CFQPoVtEDQwy88VScByBLSqgpUVQH0HjaH8GWJAWGFR7A2mwRSkfjlUAM1bg/9cbXMAVFbhaBib5N9uCwGxQdU2ID662T9aDMag5AKrOQVX9u73JIIvANSyoPl8CxOdphEFmg9sMdGgFMQgAAH4W0yWXhEbUAAAAAElFTkSuQmCC')";
 
 // report info is converted to a 32 bit hash to be used as unique id
 String.prototype.report_hash = function() {
@@ -65,7 +67,8 @@ function addToIndexFromForum(reportId, reportElement, reportPoster, reportHash) 
     'report_text': reportText,
     'report_json': reportJson,
     'script_version': gd_version,
-    'report_poster': reportPoster
+    'report_poster': reportPoster,
+    'report_poster_id': gd_w.Game.player_id || 0
   };
 
   $('.rh'+reportHash).each(function() {
@@ -447,11 +450,11 @@ function parseForumReport() {
         }
         if (bSpy === true) {
           $(reportElement).append('<div class="gd_indexer_footer" style="background: #fff; height: 28px;">\n' +
-            '    <a href="#" id="gd_index_f_'+reportId+'" report_hash="'+reportHash+'" report_id="'+reportId+'" class="button rh'+reportHash+'" style="float: right; top: 1px;"><span class="left"><span class="right"><span id="gd_index_f_txt_'+reportId+'" class="middle">'+translate.ADD+' +</span></span></span></a>\n' +
+            '    <a href="#" id="gd_index_f_'+reportId+'" report_hash="'+reportHash+'" report_id="'+reportId+'" class="button rh'+reportHash+'" style="float: right;"><span class="left"><span class="right"><span id="gd_index_f_txt_'+reportId+'" class="middle">'+translate.ADD+' +</span></span></span></a>\n' +
             '    </div>');
         } else {
           $(reportElement).append('<div class="gd_indexer_footer" style="height: 28px; margin-top: -28px;">\n' +
-            '    <a href="#" id="gd_index_f_'+reportId+'" report_hash="'+reportHash+'" report_id="'+reportId+'" class="button rh'+reportHash+'" style="float: right; top: 1px;"><span class="left"><span class="right"><span id="gd_index_f_txt_'+reportId+'" class="middle">'+translate.ADD+' +</span></span></span></a>\n' +
+            '    <a href="#" id="gd_index_f_'+reportId+'" report_hash="'+reportHash+'" report_id="'+reportId+'" class="button rh'+reportHash+'" style="float: right;"><span class="left"><span class="right"><span id="gd_index_f_txt_'+reportId+'" class="middle">'+translate.ADD+' +</span></span></span></a>\n' +
             '    </div>');
         }
 
@@ -471,6 +474,7 @@ function parseForumReport() {
 let gd_settings = {
   inbox: true,
   forum: true,
+  stats: true,
   keys_enabled: true,
   key_inbox_prev: '[',
   key_inbox_next: ']',
@@ -499,6 +503,13 @@ function settings() {
       '\t\t\t</div>\n' +
       '\t\t\t<div style="margin-left: 30px;" class="checkbox_new forum_gd_enabled'+(gd_settings.forum===true?' checked':'')+'">\n' +
       '\t\t\t\t<div class="cbx_icon"></div><div class="cbx_caption">'+translate.COLLECT_INTEL_FORUM+'</div>\n' +
+      '\t\t\t</div>\n' +
+      '\t\t\t<br><br><hr>\n';
+
+    // Stats link
+    settingsHtml += '\t\t\t<p style="margin-bottom: 10px; margin-left: 10px;"><strong>'+translate.STATS_LINK_TITLE+'</strong> <img style="background: '+gd_icon+'; margin-top: -4px; position: absolute; margin-left: 10px; height: 23px; width: 26px; float: left;"/></p>\n' +
+      '\t\t\t<div style="margin-left: 30px;" class="checkbox_new stats_gd_enabled'+(gd_settings.stats===true?' checked':'')+'">\n' +
+      '\t\t\t\t<div class="cbx_icon"></div><div class="cbx_caption">'+translate.STATS_LINK+'</div>\n' +
       '\t\t\t</div>\n' +
       '\t\t\t<br><br><hr>\n';
 
@@ -538,6 +549,7 @@ function settings() {
 
     $(".inbox_gd_enabled").click(function () { settingsCbx('inbox', !gd_settings.inbox); if (!gd_settings.inbox) {settingsCbx('keys_enabled', false);} });
     $(".forum_gd_enabled").click(function () { settingsCbx('forum', !gd_settings.forum); });
+    $(".stats_gd_enabled").click(function () { settingsCbx('stats', !gd_settings.stats); });
     $(".keys_enabled_gd_enabled").click(function () { settingsCbx('keys_enabled', !gd_settings.keys_enabled); });
 
     if (gdsettings===true) {
@@ -551,9 +563,9 @@ function settingsCbx(type, value) {
   // Update class
   if (value === true) {$('.'+type+'_gd_enabled').get(0).classList.add("checked");}
   else {$('.'+type+'_gd_enabled').get(0).classList.remove("checked");}
-  if (type === 'keys_enabled') {
-    $('.gd_shortcut_settings').get(0).style.display = (value?'block':'none');
-  }
+  //if (type === 'keys_enabled') {
+  //  $('.gd_shortcut_settings').get(0).style.display = (value?'block':'none');
+  //}
 
   // Set value
   gd_settings[type] = value;
@@ -573,6 +585,9 @@ function readSettings() {
   if (result !== null) {
     result.forum = result.forum === true || result.forum === 'manual';
     result.inbox = result.inbox === true || result.inbox === 'manual';
+    if (!('stats' in result)) {
+      result.stats = true;
+    }
     gd_settings = result;
   }
 }
@@ -628,7 +643,6 @@ function loadTownIntel(id) {
         '<a href="https://grepodata.com/indexer/'+index_key+'" target="_blank" style="">Index homepage: '+index_key+'</a></div>');
     }).done(function (b) {
       try {
-        console.log(b);
         $('.info_tab_content_'+id).css( "max-height",'100%');
         $('.info_tab_content_'+id).css( "height",'100%');
         let tooltips = [];
@@ -812,6 +826,28 @@ function loadTownIntel(id) {
   }
 }
 
+function linkToStats(action, opt) {
+  if (gd_settings.stats === true && opt && 'url' in opt) {
+    try {
+      let url = decodeURIComponent(opt.url);
+      let json = url.match(/&json={.*}&/g)[0];
+      json = json.substring(6, json.length - 1);
+      json = JSON.parse(json);
+      if ('player_id' in json && action.search("/player") >= 0) {
+        // Add stats button to player profile
+        let player_id = json.player_id;
+        let statsBtn = '<a target="_blank" href="https://grepodata.com/player/' + gd_w.Game.world_id + '/' + player_id + '" class="write_message" style="background: ' + gd_icon + '"></a>';
+        $('#player_buttons').filter(':first').append(statsBtn);
+      } else if ('alliance_id' in json && action.search("/alliance") >= 0) {
+        // Add stats button to alliance profile
+        let alliance_id = json.alliance_id;
+        let statsBtn = '<a target="_blank" href="https://grepodata.com/alliance/' + gd_w.Game.world_id + '/' + alliance_id + '" class="write_message" style="background: ' + gd_icon + '; margin: 5px;"></a>';
+        $('#player_info > ul > li').filter(':first').append(statsBtn);
+      }
+    } catch (e) {}
+  }
+}
+
 let count = 0;
 function gd_indicator() {
   count = count + 1;
@@ -830,6 +866,25 @@ function viewTownIntel(xhr) {
     '<div class="right"></div>' +
     '<div class="caption js-caption">'+translate.VIEW+'<div class="effect js-effect"></div></div></div>';
   $('.info_tab_content_'+town_id + ' > .game_inner_box > .game_border > ul.game_list > li.odd').filter(':first').append(intelBtn);
+
+  if (gd_settings.stats === true) {
+    try {
+      let player_id = xhr.responseText.match(/player_id = [0-9]*,/g)[0];
+      player_id = player_id.substring(12, player_id.search(','));
+      let ally_id = xhr.responseText.match(/alliance_id = parseInt\([0-9]*, 10\),/g)[0];
+      ally_id = ally_id.substring(23, ally_id.search(','));
+
+      // Add stats button to player name
+      let statsBtn = '<a target="_blank" href="https://grepodata.com/player/'+gd_w.Game.world_id+'/'+player_id+'" class="write_message" style="background: '+gd_icon+'"></a>';
+      $('.info_tab_content_'+town_id + ' > .game_inner_box > .game_border > ul.game_list > li.even > div.list_item_right').eq(1).append(statsBtn);
+      $('.info_tab_content_'+town_id + ' > .game_inner_box > .game_border > ul.game_list > li.even > div.list_item_right').css("min-width", "100px");
+
+      // Add stats button to ally name
+      let statsBtn2 = '<a target="_blank" href="https://grepodata.com/alliance/'+gd_w.Game.world_id+'/'+ally_id+'" class="write_message" style="background: '+gd_icon+'"></a>';
+      $('.info_tab_content_'+town_id + ' > .game_inner_box > .game_border > ul.game_list > li.odd > div.list_item_right').filter(':first').append(statsBtn2);
+      $('.info_tab_content_'+town_id + ' > .game_inner_box > .game_border > ul.game_list > li.odd > div.list_item_right').filter(':first').css("min-width", "100px");
+    } catch (e) {}
+  }
 
   // Handle click
   $('#gd_index_town_' + town_id).click(function () {
@@ -874,6 +929,10 @@ function enableCityIndex(key) {
           case "/player/index":
             settings();
             break;
+          case "/player/get_profile_html":
+          case "/alliance/profile":
+            linkToStats(action, opt);
+            break;
         }
       });
     });
@@ -895,7 +954,7 @@ function enableCityIndex(key) {
     $('.gd_settings_icon').tooltip('GrepoData City Indexer ' + index_key);
   } else {
     gd_w.gdIndexScript.push(key);
-    console.log('duplicate indexer script. index ' + key + ' is running in extend mode.');
+    console.log('duplicate indexer script. index ' + key + ' is running in extended mode.');
 
     // Merge id lists
     setTimeout(function() {loadIndexHashlist(true);}, 8000 * (gd_w.gdIndexScript.length-1));
